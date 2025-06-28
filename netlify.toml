@@ -1,0 +1,15 @@
+# netlify.toml
+
+[build]
+  # Base directory to change to before building.
+  # This is where your package.json is located.
+  base = "/"
+  # Directory (relative to base) that contains the deploy-ready HTML files and assets.
+  publish = "dist"
+  # The build command to run.
+  command = "npm run build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

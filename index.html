@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MVP Library - Launch Faster, Build Smarter</title>
+    <meta name="description" content="Access a premium library of AI-ready MVP codebases. Skip the boilerplate, accelerate your development, and launch your ideas faster than ever." />
+    <meta name="keywords" content="MVP, codebase, developer tools, SaaS boilerplate, startup, React, Next.js, development acceleration" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="MVP Library - Launch Faster, Build Smarter" />
+    <meta property="og:description" content="Access a premium library of AI-ready MVP codebases for rapid development" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://mvplibrary.dev" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MVP Library - Launch Faster, Build Smarter" />
+    <meta name="twitter:description" content="Access a premium library of AI-ready MVP codebases for rapid development" />
+    
+    <!-- Favicon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect"  href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Theme color for mobile browsers -->
+    <meta name="theme-color" content="#3b82f6" />
+    
+    <!-- Prevent FOUC (Flash of Unstyled Content) -->
+    <script>
+      // Check for saved theme preference or default to 'light'
+      const theme = localStorage.getItem('darkMode') === 'true' ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
