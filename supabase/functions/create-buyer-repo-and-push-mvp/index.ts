@@ -1,5 +1,6 @@
 // supabase/functions/create-buyer-repo-and-push-mvp/index.ts
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+// Removed: import { v4 as uuidv4 } from 'https://deno.land/std@0.224.0/uuid/mod.ts'; // This import is no longer needed
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,7 +9,7 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-   console.log('create-buyer-repo-and-push-mvp: Function invoked.');
+  console.log('create-buyer-repo-and-push-mvp: Function invoked.');
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -31,16 +32,15 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-        const requestBody = await req.json();
-    // Add this log to see the incoming request body
+    // Read the request body once
+    const requestBody = await req.json();
     console.log('create-buyer-repo-and-push-mvp: Received request body:', requestBody);
 
-    
-    const { user_id, mvp_id, deployment_id, repo_name } = await req.json();
+    // Destructure from the already read requestBody
+    const { user_id, mvp_id, deployment_id, repo_name } = requestBody;
 
     if (!user_id || !mvp_id || !deployment_id || !repo_name) {
-       console.error('create-buyer-repo-and-push-mvp: Missing required fields in request body.');
-    
+      console.error('create-buyer-repo-and-push-mvp: Missing required fields in request body.');
       return new Response(
         JSON.stringify({ error: 'Missing required fields: user_id, mvp_id, deployment_id, repo_name' }),
         {
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
       method: 'POST',
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
+        'Accept': 'application/vnd.github.v3+json', // Corrected header
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -267,7 +267,7 @@ Deno.serve(async (req) => {
     const branchesResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${sanitizedRepoName}/branches/main`, {
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.com.v3+json',
+        'Accept': 'application/vnd.github.v3+json', // Corrected header
       },
     });
 
@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
       method: 'PUT',
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.com.v3+json',
+        'Accept': 'application/vnd.github.v3+json', // Corrected header
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -357,7 +357,7 @@ ${mvp.tech_stack.map(tech => `- ${tech}`).join('\n')}
       method: 'PUT',
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.com.v3+json',
+        'Accept': 'application/vnd.github.v3+json', // Corrected header
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -427,7 +427,7 @@ async function getFileSha(owner: string, repo: string, path: string, token: stri
     const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
       headers: {
         'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.com.v3+json',
+        'Accept': 'application/vnd.github.v3+json', // Corrected header
       },
     });
 
@@ -439,5 +439,13 @@ async function getFileSha(owner: string, repo: string, path: string, token: stri
   } catch (error) {
     console.error(`Error getting SHA for ${path}:`, error);
     return undefined;
+  }
+}
+``````json
+// supabase/functions/create-buyer-repo-and-push-mvp/deno.json
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.49.1"
+    // Removed: "uuid": "https://deno.land/std@0.224.0/uuid/mod.ts"
   }
 }
