@@ -1,6 +1,6 @@
 {
   "imports": {
-    "uuid": "https://deno.land/std@0.224.0/uuid/mod.ts",
+    "uuid": "npm:uuid",
     "@supabase/supabase-js": "npm:@supabase/supabase-js@2.49.1"
   }
 }
