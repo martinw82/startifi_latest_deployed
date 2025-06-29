@@ -1,7 +1,7 @@
 // supabase/functions/initiate-buyer-github-oauth/index.ts
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { v4 } from 'https://deno.land/std@0.224.0/uuid/mod.ts'; // Corrected import
+import { v4.generate } from 'https://deno.land/std@0.224.0/uuid/mod.ts'; // Corrected import
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
