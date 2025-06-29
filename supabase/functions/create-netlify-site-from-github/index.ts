@@ -97,7 +97,12 @@ Deno.serve(async (req) => {
     // Generate a unique site name
     // Use a fixed prefix, part of the deployment ID, and a small random string for uniqueness
     const randomSuffix = Math.random().toString(36).substring(2, 6); // 4 random alphanumeric characters
-    const uniqueSiteName = `mvp-deploy-${deployment_id.substring(0, 8)}-${randomSuffix}`;
+    let uniqueSiteName = `mvp-deploy-${deployment_id.substring(0, 8)}-${randomSuffix}`;
+    // Further sanitize the site name to ensure it adheres to Netlify's conventions
+    uniqueSiteName = uniqueSiteName
+      .replace(/[^a-z0-9-]/g, '') // Ensure only allowed characters (lowercase, numbers, hyphens)
+      .replace(/--+/g, '-')      // Replace multiple hyphens with single
+      .replace(/^-+|-+$/g, '');  // Trim leading/trailing hyphens
 
     // Extract GitHub repository owner and name from the URL
     const githubUrlMatch = github_repo_url.match(/github\.com\/([^/]+)\/([^/]+)/);
@@ -115,7 +120,7 @@ Deno.serve(async (req) => {
 
     const [, repoOwner, repoName] = githubUrlMatch;
 
-    // Fetch the user's GitHub token to get the numeric repository ID
+    // Fetch the user's GitHub token to get the numeric repository ID and private status
     const { data: githubTokenData, error: githubTokenError } = await supabase
       .from('user_oauth_tokens')
       .select('access_token')
@@ -136,7 +141,7 @@ Deno.serve(async (req) => {
     }
     const githubToken = githubTokenData.access_token;
 
-    // Fetch the numeric GitHub repository ID
+    // Fetch the numeric GitHub repository ID and private status
     const githubRepoResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}`, {
       headers: {
         'Authorization': `token ${githubToken}`,
@@ -158,6 +163,7 @@ Deno.serve(async (req) => {
     }
     const githubRepoData = await githubRepoResponse.json();
     const githubRepoId = githubRepoData.id; // This is the numeric ID
+    const isRepoPrivate = githubRepoData.private; // Get private status
 
     // Step 1: Create a new Netlify site and link the repository simultaneously
     console.log(`Creating Netlify site for user ${user_id}: ${uniqueSiteName}`);
@@ -173,7 +179,8 @@ Deno.serve(async (req) => {
         repo: { // Add this repo object
           provider: 'github',
           id: githubRepoId, // Use the numeric GitHub repository ID here
-          private: true, // Set to true if the repository is private
+          repo: `${repoOwner}/${repoName}`, // Add the full repository name (e.g., "owner/repo-name")
+          private: isRepoPrivate, // Use the actual private status from GitHub
           branch: 'main', // Specify the main branch for deployment
           cmd: 'npm run build', // The build command for your project
           dir: 'dist', // The publish directory after building
@@ -185,7 +192,7 @@ Deno.serve(async (req) => {
     if (!createSiteResponse.ok) {
       const errorData = await createSiteResponse.text();
       console.error('Failed to create Netlify site:', errorData);
-      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to create Netlify site');
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', `Failed to create Netlify site: ${errorData}`);
       return new Response(
         JSON.stringify({ error: 'Failed to create Netlify site' }),
         {
