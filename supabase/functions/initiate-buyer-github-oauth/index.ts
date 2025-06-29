@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     // Generate a unique state parameter to prevent CSRF attacks
-    const state = v4.generate(); // Corrected: Call v4 directly
+    const state = v4(); // Corrected: Call v4 directly
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // State valid for 5 minutes
 
     // Store the state, user_id, and mvp_id (if provided) in the database
