@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', deployment_id);
-
+(Deno.sleep(7000))
     const connectRepoResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/builds`, {
       method: 'POST',
       headers: {
