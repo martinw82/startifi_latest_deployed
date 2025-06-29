@@ -1,7 +1,5 @@
 // supabase/functions/create-buyer-repo-and-push-mvp/index.ts
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-// Import v4 from the uuid module using the import map alias
-import { v4 } from 'uuid'; 
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
