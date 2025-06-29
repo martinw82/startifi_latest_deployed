@@ -1,5 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-+import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,6 +86,10 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Define the redirect_uri here, matching the one used in initiate-netlify-oauth
+    const origin = req.headers.get('origin') || 'http://localhost:5173';
+    const redirectUri = `${origin}/buyer-netlify-callback`;
+
     const tokenResponse = await fetch('https://api.netlify.com/oauth/token', {
       method: 'POST',
       headers: {
@@ -96,6 +100,7 @@ Deno.serve(async (req) => {
         client_secret: netlifyClientSecret,
         code: code,
         grant_type: 'authorization_code',
+        redirect_uri: redirectUri, // Added redirect_uri here
       }),
     });
 
