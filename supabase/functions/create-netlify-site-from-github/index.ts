@@ -94,39 +94,10 @@ Deno.serve(async (req) => {
 
     const netlifyToken = tokenData.access_token;
 
-    // Fetch the user's Netlify site name
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('netlify_site_name')
-      .eq('id', user_id)
-      .single();
-
-    if (userError || !userData?.netlify_site_name) {
-      console.error('Error fetching Netlify site name:', userError);
-      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Netlify site name not found');
-      return new Response(
-        JSON.stringify({ error: 'Netlify site name not found' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
-
-    // Generate a unique site name based on the user's Netlify site name and the deployment ID
-    let baseSiteName = userData.netlify_site_name || 'mvp-project'; // Default if empty
-    baseSiteName = baseSiteName
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-') // Replace non-alphanumeric (except hyphen) with hyphen
-      .replace(/^-+|-+$/g, '')    // Remove leading/trailing hyphens
-      .replace(/-+/g, '-');       // Replace multiple hyphens with single hyphen
-
-    // Fallback if baseSiteName becomes empty after sanitization
-    if (!baseSiteName) {
-      baseSiteName = 'mvp-project';
-    }
-
-    const uniqueSiteName = `${baseSiteName}-${deployment_id.substring(0, 8)}`;
+    // Generate a unique site name
+    // Use a fixed prefix, part of the deployment ID, and a small random string for uniqueness
+    const randomSuffix = Math.random().toString(36).substring(2, 6); // 4 random alphanumeric characters
+    const uniqueSiteName = `mvp-deploy-${deployment_id.substring(0, 8)}-${randomSuffix}`;
 
     // Extract GitHub repository owner and name from the URL
     const githubUrlMatch = github_repo_url.match(/github\.com\/([^/]+)\/([^/]+)/);
@@ -206,8 +177,7 @@ Deno.serve(async (req) => {
           branch: 'main', // Specify the main branch for deployment
           cmd: 'npm run build', // The build command for your project
           dir: 'dist', // The publish directory after building
-          functions_dir: "", // Set to an empty string if you don't have Netlify Functions
-       
+          functions_dir: null, // Set to null if you don't have Netlify Functions
         },
       }),
     });
