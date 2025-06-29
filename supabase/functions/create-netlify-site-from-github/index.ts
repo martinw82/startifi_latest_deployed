@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
 
     const [, repoOwner, repoName] = githubUrlMatch;
 
-    // Step 1: Create a new Netlify site
+    // Step 1: Create a new Netlify site and link the repository simultaneously
     console.log(`Creating Netlify site for user ${user_id}: ${uniqueSiteName}`);
 
     const createSiteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
@@ -143,6 +143,15 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         name: uniqueSiteName,
+        repo: { // Add this repo object
+          provider: 'github',
+          id: `${repoOwner}/${repoName}`, // Use the full name (owner/repo) as the ID
+          private: true, // Set to true if the repository is private
+          branch: 'main', // Specify the main branch for deployment
+          cmd: 'npm run build', // The build command for your project
+          dir: 'dist', // The publish directory after building
+          functions_dir: null, // Set to null if you don't have Netlify Functions
+        },
       }),
     });
 
@@ -166,83 +175,14 @@ Deno.serve(async (req) => {
 
     console.log(`Successfully created Netlify site: ${siteUrl} (ID: ${siteId})`);
 
-    // Update deployment with Netlify site info
+    // Update deployment with Netlify site info and set status to completed
     await supabase
       .from('deployments')
       .update({
         netlify_site_url: siteUrl,
         netlify_site_id: siteId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', deployment_id);
-
-    // Step 2: Connect the site to the GitHub repository
-    console.log(`Connecting Netlify site ${siteId} to GitHub repository ${repoOwner}/${repoName}`);
-
-    // Update deployment status to deploying
-    await supabase
-      .from('deployments')
-      .update({
-        status: 'deploying',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', deployment_id);
-await new Promise(resolve => setTimeout(resolve, 7000));
-
-   
-      body: JSON.stringify({
-        repo: {
-          provider: 'github',
-          repo: `${repoOwner}/${repoName}`,
-          private: true,
-          branch: 'main',
-          cmd: 'npm run build',
-          dir: 'dist',
-          functions_dir: null,
-        }
-      }),
-    });
-
-    // Check if the connection was successful
-    if (!connectRepoResponse.ok) {
-      const errorData = await connectRepoResponse.text();
-      console.error('Failed to connect GitHub repository to Netlify site:', errorData);
-      
-      // This is a partial failure - we created the site but couldn't connect to GitHub
-      // Update the deployment record with what we have
-      await supabase
-        .from('deployments')
-        .update({
-          status: 'failed',
-          error_message: 'Failed to connect GitHub repository to Netlify site. Please connect it manually.',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', deployment_id);
-      
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to connect GitHub repository to Netlify site',
-          partial_success: true,
-          site_url: siteUrl,
-          site_id: siteId,
-          site_name: siteName,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 207, // Partial success
-        }
-      );
-    }
-
-    const buildData = await connectRepoResponse.json();
-    console.log(`Successfully connected GitHub repository to Netlify site. Build ID: ${buildData.id}`);
-
-    // Update deployment status to completed
-    await supabase
-      .from('deployments')
-      .update({
-        status: 'completed',
-        netlify_deploy_id: buildData.id,
+        status: 'completed', // Set status to completed directly after site creation
+        netlify_deploy_id: siteData.build_id, // Netlify returns build_id on site creation with repo
         updated_at: new Date().toISOString(),
       })
       .eq('id', deployment_id);
@@ -254,7 +194,7 @@ await new Promise(resolve => setTimeout(resolve, 7000));
         site_url: siteUrl,
         site_id: siteId,
         site_name: siteName,
-        build_id: buildData.id,
+        build_id: siteData.build_id, // Return the build ID
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
