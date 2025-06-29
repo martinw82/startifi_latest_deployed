@@ -317,6 +317,99 @@ Deno.serve(async (req) => {
     }
     console.log('create-buyer-repo-and-push-mvp: netlify.toml uploaded.');
 
+    // Step 3: Create and upload GitHub Actions workflow file for automatically unpacking archives
+    console.log('create-buyer-repo-and-push-mvp: Creating GitHub Actions workflow for unpacking archives.');
+    
+    // Directory creation is needed first for the workflows folder structure
+    const workflowDirResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${sanitizedRepoName}/contents/.github/workflows`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: 'Create workflows directory',
+        content: btoa(''), // Empty content for directory creation
+        branch: 'main'
+      }),
+    });
+    
+    // Only proceed if directory creation worked or if it failed because it already exists (422 error)
+    if (!workflowDirResponse.ok && workflowDirResponse.status !== 422) {
+      console.error('create-buyer-repo-and-push-mvp: Failed to create workflows directory:', await workflowDirResponse.text());
+    }
+
+    // Create GitHub Actions workflow file for unpacking archives
+    const unpackWorkflowContent = `name: Unpack Archive
+
+on:
+  push:
+    paths:
+      - '**.zip'
+      - '**.tar.gz'
+      - '**.rar'
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+      - name: Find archive files
+        id: find_archives
+        run: |
+          echo "archives=$(find . -type f -name "*.zip" -o -name "*.tar.gz" -o -name "*.rar" | xargs)" >> $GITHUB_OUTPUT
+      - name: Unpack archive files
+        if: steps.find_archives.outputs.archives != ''
+        run: |
+          for archive in ${{ steps.find_archives.outputs.archives }}; do
+            echo "Unpacking $archive..."
+            if [[ "$archive" == *.zip ]]; then
+              unzip -o "$archive" -d .
+              rm "$archive"
+            elif [[ "$archive" == *.tar.gz ]]; then
+              tar -xzf "$archive" -C .
+              rm "$archive"
+            elif [[ "$archive" == *.rar ]]; then
+              unrar x "$archive" .
+              rm "$archive"
+            fi
+          done
+      - name: Commit extracted files
+        if: steps.find_archives.outputs.archives != ''
+        run: |
+          git config user.name "GitHub Action Bot"
+          git config user.email "action-bot@example.com"
+          git add .
+          git commit -m "Unpacked archive file(s) automatically"
+          git push
+`;
+
+    const unpackWorkflowResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${sanitizedRepoName}/contents/.github/workflows/unpack.yml`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: 'Add GitHub Actions workflow for unpacking archives',
+        content: btoa(unpackWorkflowContent),
+        branch: 'main',
+      }),
+    });
+
+    if (!unpackWorkflowResponse.ok) {
+      console.error('create-buyer-repo-and-push-mvp: Failed to create unpack workflow:', await unpackWorkflowResponse.text());
+      // Continue anyway - this is not critical enough to fail the whole deployment
+    } else {
+      console.log('create-buyer-repo-and-push-mvp: GitHub Actions workflow for unpacking created successfully.');
+    }
+
     console.log('create-buyer-repo-and-push-mvp: Uploading README.md file.');
     const readmeContent = `# ${mvp.title}
 
@@ -356,6 +449,47 @@ ${mvp.tech_stack.map(tech => `- ${tech}`).join('\n')}
       console.error('create-buyer-repo-and-push-mvp: Failed to update README:', await readmeResponse.text());
     }
     console.log('create-buyer-repo-and-push-mvp: README.md uploaded.');
+    
+    // Determine the appropriate file extension
+    let fileExtension = '.zip'; // Default extension
+    const contentType = fileData.type;
+    if (contentType === 'application/gzip' || contentType === 'application/x-gzip' || filePath.endsWith('.tar.gz')) {
+      fileExtension = '.tar.gz';
+    } else if (contentType === 'application/vnd.rar' || contentType === 'application/x-rar-compressed' || filePath.endsWith('.rar')) {
+      fileExtension = '.rar';
+    }
+    
+    // Upload the MVP archive to the repository root with its actual extension to trigger the GitHub Action
+    const archiveFileName = `mvp-source${fileExtension}`;
+    console.log(`create-buyer-repo-and-push-mvp: Uploading MVP archive as ${archiveFileName}...`);
+    
+    const archiveResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${sanitizedRepoName}/contents/${archiveFileName}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: 'Add MVP source archive',
+        content: arrayBufferToBase64(fileBuffer),
+        branch: 'main',
+      }),
+    });
+    
+    if (!archiveResponse.ok) {
+      console.error(`create-buyer-repo-and-push-mvp: Failed to upload MVP archive: ${await archiveResponse.text()}`);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to upload MVP archive to GitHub repository');
+      return new Response(
+        JSON.stringify({ error: 'Failed to upload MVP archive to GitHub repository' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+    
+    console.log('create-buyer-repo-and-push-mvp: MVP archive uploaded successfully.');
 
     console.log('create-buyer-repo-and-push-mvp: Returning success response.');
     return new Response(
@@ -383,6 +517,16 @@ ${mvp.tech_stack.map(tech => `- ${tech}`).join('\n')}
     );
   }
 });
+
+// Helper function to convert ArrayBuffer to base64
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
 
 async function updateDeploymentStatus(supabase: any, deploymentId: string, status: string, errorMessage?: string) {
   const updateData: Record<string, any> = {

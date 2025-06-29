@@ -210,6 +210,8 @@ Deno.serve(async (req) => {
     console.log(`Successfully created Netlify site: ${siteUrl} (ID: ${siteId})`);
 
     // Update deployment with Netlify site info and set status to completed
+    // We're keeping the status as 'completed' even though the GitHub Action will still run
+    // The user will see the site appear after the GitHub Action unpacks the files and Netlify builds
     await supabase
       .from('deployments')
       .update({
