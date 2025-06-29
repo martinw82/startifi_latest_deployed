@@ -1,7 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { v4 as uuidv4 } from 'https://deno.land/std@0.224.0/uuid/mod.ts';
+import { v4 } from 'uuid';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     }
 
     // Generate a unique state parameter to prevent CSRF attacks
-    const state = uuidv4();
+    const state = v4();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // State valid for 5 minutes
 
     // Store the state, user_id, and deployment_id in the database
