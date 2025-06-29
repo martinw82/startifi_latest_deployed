@@ -189,12 +189,7 @@ Deno.serve(async (req) => {
       .eq('id', deployment_id);
 await new Promise(resolve => setTimeout(resolve, 7000));
 
-    const connectRepoResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/builds`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${netlifyToken}`,
-        'Content-Type': 'application/json',
-      },
+   
       body: JSON.stringify({
         repo: {
           provider: 'github',
