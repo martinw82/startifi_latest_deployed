@@ -106,9 +106,8 @@ Deno.serve(async (req) => {
     const origin = req.headers.get('origin') || 'http://localhost:5173';
     const redirectUri = `${origin}/buyer-netlify-callback`;
     
-    // Removed the 'scope' parameter as it was causing issues.
-    // Netlify's OAuth often relies on the permissions configured for the OAuth application itself.
-    const netlifyAuthUrl = `https://app.netlify.com/authorize?client_id=${netlifyClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&response_type=code`;
+    // Added 'scope=write:sites' to request necessary permissions
+    const netlifyAuthUrl = `https://app.netlify.com/authorize?client_id=${netlifyClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&response_type=code&scope=write:sites`;
 
     console.log(`Generated Netlify OAuth URL for user ${user_id}: ${netlifyAuthUrl}`);
 
