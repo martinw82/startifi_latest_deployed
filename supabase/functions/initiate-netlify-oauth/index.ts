@@ -1,4 +1,4 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+// supabase/functions/initiate-netlify-oauth/index.ts
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { v4 } from 'npm:uuid';
@@ -106,10 +106,9 @@ Deno.serve(async (req) => {
     const origin = req.headers.get('origin') || 'http://localhost:5173';
     const redirectUri = `${origin}/buyer-netlify-callback`;
     
-    // Request scopes needed for site creation and deployment
-    const scope = 'user'; // Basic user info - we'll request specific site permissions later
-    
-    const netlifyAuthUrl = `https://app.netlify.com/authorize?client_id=${netlifyClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}&response_type=code`;
+    // Removed the 'scope' parameter as it was causing issues.
+    // Netlify's OAuth often relies on the permissions configured for the OAuth application itself.
+    const netlifyAuthUrl = `https://app.netlify.com/authorize?client_id=${netlifyClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&response_type=code`;
 
     console.log(`Generated Netlify OAuth URL for user ${user_id}: ${netlifyAuthUrl}`);
 
