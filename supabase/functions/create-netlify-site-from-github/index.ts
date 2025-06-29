@@ -1,3 +1,4 @@
+// supabase/functions/create-netlify-site-from-github/index.ts
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
  
@@ -132,6 +133,50 @@ Deno.serve(async (req) => {
 
     const [, repoOwner, repoName] = githubUrlMatch;
 
+    // Fetch the user's GitHub token to get the numeric repository ID
+    const { data: githubTokenData, error: githubTokenError } = await supabase
+      .from('user_oauth_tokens')
+      .select('access_token')
+      .eq('user_id', user_id)
+      .eq('provider', 'github')
+      .maybeSingle();
+
+    if (githubTokenError || !githubTokenData) {
+      console.error('Error fetching GitHub token:', githubTokenError);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'GitHub token not found for fetching repo ID');
+      return new Response(
+        JSON.stringify({ error: 'GitHub token not found for fetching repo ID' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
+    }
+    const githubToken = githubTokenData.access_token;
+
+    // Fetch the numeric GitHub repository ID
+    const githubRepoResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}`, {
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!githubRepoResponse.ok) {
+      const errorData = await githubRepoResponse.text();
+      console.error('Failed to fetch GitHub repository details:', errorData);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to fetch GitHub repository details');
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch GitHub repository details' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+    const githubRepoData = await githubRepoResponse.json();
+    const githubRepoId = githubRepoData.id; // This is the numeric ID
+
     // Step 1: Create a new Netlify site and link the repository simultaneously
     console.log(`Creating Netlify site for user ${user_id}: ${uniqueSiteName}`);
 
@@ -145,7 +190,7 @@ Deno.serve(async (req) => {
         name: uniqueSiteName,
         repo: { // Add this repo object
           provider: 'github',
-          id: `${repoOwner}/${repoName}`, // Use the full name (owner/repo) as the ID
+          id: githubRepoId, // Use the numeric GitHub repository ID here
           private: true, // Set to true if the repository is private
           branch: 'main', // Specify the main branch for deployment
           cmd: 'npm run build', // The build command for your project
