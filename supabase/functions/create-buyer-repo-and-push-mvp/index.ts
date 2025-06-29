@@ -8,6 +8,8 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+   console.log('create-buyer-repo-and-push-mvp: Function invoked.');
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,9 +31,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+        const requestBody = await req.json();
+    // Add this log to see the incoming request body
+    console.log('create-buyer-repo-and-push-mvp: Received request body:', requestBody);
+
+    
     const { user_id, mvp_id, deployment_id, repo_name } = await req.json();
 
     if (!user_id || !mvp_id || !deployment_id || !repo_name) {
+       console.error('create-buyer-repo-and-push-mvp: Missing required fields in request body.');
+    
       return new Response(
         JSON.stringify({ error: 'Missing required fields: user_id, mvp_id, deployment_id, repo_name' }),
         {
