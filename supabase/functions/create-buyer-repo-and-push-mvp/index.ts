@@ -1,4 +1,7 @@
+// supabase/functions/create-buyer-repo-and-push-mvp/index.ts
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+// Import v4 from the uuid module using the import map alias
+import { v4 } from 'uuid'; 
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -257,7 +260,7 @@ Deno.serve(async (req) => {
     const branchesResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${sanitizedRepoName}/branches/main`, {
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
+        'Accept': 'application/vnd.github.com.v3+json',
       },
     });
 
@@ -298,13 +301,14 @@ Deno.serve(async (req) => {
       method: 'PUT',
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
+        'Accept': 'application/vnd.github.com.v3+json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         message: 'Add Netlify configuration',
         content: btoa(netlifyConfig),
         branch: 'main',
+        sha: await getFileSha(githubUsername, sanitizedRepoName, 'netlify.toml', githubToken) // Get SHA if file exists
       }),
     });
 
@@ -346,13 +350,14 @@ ${mvp.tech_stack.map(tech => `- ${tech}`).join('\n')}
       method: 'PUT',
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
+        'Accept': 'application/vnd.github.com.v3+json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         message: 'Update README with MVP details',
         content: btoa(readmeContent),
         branch: 'main',
+        sha: await getFileSha(githubUsername, sanitizedRepoName, 'README.md', githubToken) // Get SHA if file exists
       }),
     });
 
@@ -406,5 +411,26 @@ async function updateDeploymentStatus(supabase: any, deploymentId: string, statu
       .eq('id', deploymentId);
   } catch (error) {
     console.error(`Failed to update deployment status to ${status}:`, error);
+  }
+}
+
+// Helper function to get file SHA for updating content
+async function getFileSha(owner: string, repo: string, path: string, token: string): Promise<string | undefined> {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.com.v3+json',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.sha;
+    }
+    return undefined;
+  } catch (error) {
+    console.error(`Error getting SHA for ${path}:`, error);
+    return undefined;
   }
 }
