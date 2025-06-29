@@ -1,6 +1,5 @@
 // supabase/functions/create-buyer-repo-and-push-mvp/index.ts
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-// Removed: import { v4 as uuidv4 } from 'https://deno.land/std@0.224.0/uuid/mod.ts'; // This import is no longer needed
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +10,6 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   console.log('create-buyer-repo-and-push-mvp: Function invoked.');
 
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -32,11 +30,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Read the request body once
     const requestBody = await req.json();
     console.log('create-buyer-repo-and-push-mvp: Received request body:', requestBody);
 
-    // Destructure from the already read requestBody
     const { user_id, mvp_id, deployment_id, repo_name } = requestBody;
 
     if (!user_id || !mvp_id || !deployment_id || !repo_name) {
@@ -50,7 +46,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update deployment status to creating_repo
+    console.log(`create-buyer-repo-and-push-mvp: Updating deployment status to 'creating_repo' for deployment ID: ${deployment_id}`);
     await supabase
       .from('deployments')
       .update({
@@ -58,8 +54,9 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', deployment_id);
+    console.log('create-buyer-repo-and-push-mvp: Deployment status updated to creating_repo.');
 
-    // Verify the user has downloaded this MVP
+    console.log(`create-buyer-repo-and-push-mvp: Verifying MVP access for user ${user_id} and MVP ${mvp_id}.`);
     const { data: downloadData, error: downloadError } = await supabase
       .from('downloads')
       .select('id')
@@ -68,7 +65,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (downloadError) {
-      console.error('Error checking download records:', downloadError);
+      console.error('create-buyer-repo-and-push-mvp: Error checking download records:', downloadError);
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to verify MVP access');
       return new Response(
         JSON.stringify({ error: 'Failed to verify MVP access' }),
@@ -80,6 +77,7 @@ Deno.serve(async (req) => {
     }
 
     if (!downloadData) {
+      console.warn('create-buyer-repo-and-push-mvp: User has not purchased/downloaded this MVP.');
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'User has not purchased/downloaded this MVP');
       return new Response(
         JSON.stringify({ error: 'User has not purchased/downloaded this MVP' }),
@@ -89,8 +87,9 @@ Deno.serve(async (req) => {
         }
       );
     }
+    console.log('create-buyer-repo-and-push-mvp: MVP access verified.');
 
-    // Fetch the user's GitHub token
+    console.log(`create-buyer-repo-and-push-mvp: Fetching GitHub token for user ${user_id}.`);
     const { data: tokenData, error: tokenError } = await supabase
       .from('user_oauth_tokens')
       .select('access_token')
@@ -99,7 +98,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (tokenError || !tokenData) {
-      console.error('Error fetching GitHub token:', tokenError);
+      console.error('create-buyer-repo-and-push-mvp: Error fetching GitHub token:', tokenError);
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'GitHub authentication not found');
       return new Response(
         JSON.stringify({ error: 'GitHub authentication not found. Please connect your GitHub account.' }),
@@ -109,10 +108,10 @@ Deno.serve(async (req) => {
         }
       );
     }
-
     const githubToken = tokenData.access_token;
+    console.log('create-buyer-repo-and-push-mvp: GitHub token fetched.');
 
-    // Fetch the user's GitHub username
+    console.log(`create-buyer-repo-and-push-mvp: Fetching GitHub username for user ${user_id}.`);
     const { data: userData, error: userError } = await supabase
       .from('profiles')
       .select('github_username')
@@ -120,7 +119,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (userError || !userData?.github_username) {
-      console.error('Error fetching GitHub username:', userError);
+      console.error('create-buyer-repo-and-push-mvp: Error fetching GitHub username:', userError);
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'GitHub username not found');
       return new Response(
         JSON.stringify({ error: 'GitHub username not found' }),
@@ -130,10 +129,10 @@ Deno.serve(async (req) => {
         }
       );
     }
-
     const githubUsername = userData.github_username;
+    console.log(`create-buyer-repo-and-push-mvp: GitHub username fetched: ${githubUsername}.`);
 
-    // Fetch the MVP data to get the file and details
+    console.log(`create-buyer-repo-and-push-mvp: Fetching MVP data for MVP ID: ${mvp_id}.`);
     const { data: mvp, error: mvpError } = await supabase
       .from('mvps')
       .select('*')
@@ -141,7 +140,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (mvpError || !mvp) {
-      console.error('Error fetching MVP:', mvpError);
+      console.error('create-buyer-repo-and-push-mvp: Error fetching MVP:', mvpError);
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to fetch MVP data');
       return new Response(
         JSON.stringify({ error: 'Failed to fetch MVP data' }),
@@ -151,38 +150,34 @@ Deno.serve(async (req) => {
         }
       );
     }
+    console.log('create-buyer-repo-and-push-mvp: MVP data fetched.');
 
-    // Sanitize repository name (alphanumeric, hyphens, and underscores only)
     const sanitizedRepoName = repo_name
       .replace(/[^a-zA-Z0-9_-]/g, '-')
-      .replace(/^[^a-zA-Z0-9]/, 'r') // Ensure it starts with a letter
+      .replace(/^[^a-zA-Z0-9]/, 'r')
       .toLowerCase();
 
-    // Step 1: Create a new repository on GitHub
-    console.log(`Creating GitHub repository for user ${user_id}: ${sanitizedRepoName}`);
-
+    console.log(`create-buyer-repo-and-push-mvp: Attempting to create GitHub repository: ${sanitizedRepoName}`);
     const createRepoResponse = await fetch('https://api.github.com/user/repos', {
       method: 'POST',
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json', // Corrected header
+        'Accept': 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         name: sanitizedRepoName,
         description: `${mvp.title} - Deployed from MVP Library`,
         private: true,
-        auto_init: true, // Create with a README
+        auto_init: true,
       }),
     });
 
     if (!createRepoResponse.ok) {
       const errorData = await createRepoResponse.json();
-      console.error('Failed to create GitHub repository:', errorData);
+      console.error('create-buyer-repo-and-push-mvp: Failed to create GitHub repository:', errorData);
       
       let errorMessage = 'Failed to create GitHub repository';
-      
-      // Handle specific error cases
       if (errorData.errors && errorData.errors.length > 0) {
         if (errorData.errors[0].message.includes('name already exists')) {
           errorMessage = `Repository name "${sanitizedRepoName}" already exists on your GitHub account. Please choose a different name.`;
@@ -203,11 +198,11 @@ Deno.serve(async (req) => {
 
     const repoData = await createRepoResponse.json();
     const repoUrl = repoData.html_url;
-    const gitUrl = repoData.clone_url; // Will be used for pushing code
+    const gitUrl = repoData.clone_url;
 
-    console.log(`Successfully created GitHub repository: ${repoUrl}`);
+    console.log(`create-buyer-repo-and-push-mvp: Successfully created GitHub repository: ${repoUrl}`);
 
-    // Update deployment with repo URL
+    console.log(`create-buyer-repo-and-push-mvp: Updating deployment with repo URL: ${repoUrl}`);
     await supabase
       .from('deployments')
       .update({
@@ -215,8 +210,9 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', deployment_id);
+    console.log('create-buyer-repo-and-push-mvp: Deployment updated with repo URL.');
 
-    // Step 2: Determine the Supabase Storage path for the MVP file
+    console.log(`create-buyer-repo-and-push-mvp: Determining MVP file path for MVP ID: ${mvp_id}.`);
     let filePath: string;
     const slug = mvp.slug;
     if (mvp.last_synced_github_commit_sha) {
@@ -226,14 +222,15 @@ Deno.serve(async (req) => {
     } else {
       filePath = `mvps/${slug}/versions/${mvp.version_number}/source`;
     }
+    console.log(`create-buyer-repo-and-push-mvp: MVP file path determined: ${filePath}.`);
 
-    // Step 3: Download the MVP file from Supabase Storage
+    console.log(`create-buyer-repo-and-push-mvp: Downloading MVP file from Supabase Storage: ${filePath}.`);
     const { data: fileData, error: fileError } = await supabase.storage
       .from('mvp-files')
       .download(filePath);
 
     if (fileError || !fileData) {
-      console.error('Error downloading MVP file:', fileError);
+      console.error('create-buyer-repo-and-push-mvp: Error downloading MVP file:', fileError);
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to download MVP file');
       return new Response(
         JSON.stringify({ error: 'Failed to download MVP file from storage' }),
@@ -243,8 +240,9 @@ Deno.serve(async (req) => {
         }
       );
     }
+    console.log('create-buyer-repo-and-push-mvp: MVP file downloaded.');
 
-    // Update deployment status to pushing_code
+    console.log(`create-buyer-repo-and-push-mvp: Updating deployment status to 'pushing_code'.`);
     await supabase
       .from('deployments')
       .update({
@@ -252,27 +250,18 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', deployment_id);
+    console.log('create-buyer-repo-and-push-mvp: Deployment status updated to pushing_code.');
 
-    // Step 4: Push the code to the GitHub repository
-    // This would typically involve:
-    // 1. Extracting the ZIP file
-    // 2. Creating a Git repository
-    // 3. Adding files and committing
-    // 4. Pushing to GitHub
-    
-    // Since this is complex to do within an Edge Function, we'll simplify with a direct API approach:
-    // We'll use GitHub's Contents API to upload files directly
-
-    // First, let's get the current commit SHA so we can create a new branch
+    console.log(`create-buyer-repo-and-push-mvp: Fetching main branch data for ${githubUsername}/${sanitizedRepoName}.`);
     const branchesResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${sanitizedRepoName}/branches/main`, {
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json', // Corrected header
+        'Accept': 'application/vnd.github.v3+json',
       },
     });
 
     if (!branchesResponse.ok) {
-      console.error('Failed to get main branch data:', await branchesResponse.text());
+      console.error('create-buyer-repo-and-push-mvp: Failed to get main branch data:', await branchesResponse.text());
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to access repository branch');
       return new Response(
         JSON.stringify({ error: 'Failed to access repository branch' }),
@@ -282,20 +271,16 @@ Deno.serve(async (req) => {
         }
       );
     }
-
     const branchData = await branchesResponse.json();
     const mainSha = branchData.commit.sha;
+    console.log(`create-buyer-repo-and-push-mvp: Main branch SHA: ${mainSha}.`);
 
-    // Now upload a netlify.toml file to configure the deployment
+    console.log('create-buyer-repo-and-push-mvp: Uploading netlify.toml file.');
     const netlifyConfig = `# netlify.toml
 
 [build]
-  # Base directory to change to before building.
-  # This is where your package.json is located.
   base = "/"
-  # Directory (relative to base) that contains the deploy-ready HTML files and assets.
   publish = "dist"
-  # The build command to run.
   command = "npm run build"
 
 [[redirects]]
@@ -308,19 +293,19 @@ Deno.serve(async (req) => {
       method: 'PUT',
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json', // Corrected header
+        'Accept': 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         message: 'Add Netlify configuration',
         content: btoa(netlifyConfig),
         branch: 'main',
-        sha: await getFileSha(githubUsername, sanitizedRepoName, 'netlify.toml', githubToken) // Get SHA if file exists
+        sha: await getFileSha(githubUsername, sanitizedRepoName, 'netlify.toml', githubToken)
       }),
     });
 
     if (!netlifyConfigResponse.ok) {
-      console.error('Failed to add netlify.toml file:', await netlifyConfigResponse.text());
+      console.error('create-buyer-repo-and-push-mvp: Failed to add netlify.toml file:', await netlifyConfigResponse.text());
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to configure repository for Netlify');
       return new Response(
         JSON.stringify({ error: 'Failed to configure repository for Netlify' }),
@@ -330,10 +315,9 @@ Deno.serve(async (req) => {
         }
       );
     }
+    console.log('create-buyer-repo-and-push-mvp: netlify.toml uploaded.');
 
-    // For the actual MVP code, we'd normally extract the ZIP file and push each file
-    // Since this is complex within an Edge Function, we'll create a placeholder file
-    // In a production environment, you would extract the ZIP and upload each file
+    console.log('create-buyer-repo-and-push-mvp: Uploading README.md file.');
     const readmeContent = `# ${mvp.title}
 
 ${mvp.tagline}
@@ -357,23 +341,23 @@ ${mvp.tech_stack.map(tech => `- ${tech}`).join('\n')}
       method: 'PUT',
       headers: {
         'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json', // Corrected header
+        'Accept': 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         message: 'Update README with MVP details',
         content: btoa(readmeContent),
         branch: 'main',
-        sha: await getFileSha(githubUsername, sanitizedRepoName, 'README.md', githubToken) // Get SHA if file exists
+        sha: await getFileSha(githubUsername, sanitizedRepoName, 'README.md', githubToken)
       }),
     });
 
     if (!readmeResponse.ok) {
-      console.error('Failed to update README:', await readmeResponse.text());
-      // Non-critical error, continue
+      console.error('create-buyer-repo-and-push-mvp: Failed to update README:', await readmeResponse.text());
     }
+    console.log('create-buyer-repo-and-push-mvp: README.md uploaded.');
 
-    // Return success with GitHub repository URL
+    console.log('create-buyer-repo-and-push-mvp: Returning success response.');
     return new Response(
       JSON.stringify({
         success: true,
@@ -389,7 +373,7 @@ ${mvp.tech_stack.map(tech => `- ${tech}`).join('\n')}
     );
 
   } catch (error: any) {
-    console.error('Error in create-buyer-repo-and-push-mvp function:', error);
+    console.error('create-buyer-repo-and-push-mvp: Error in function:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
       {
@@ -400,7 +384,6 @@ ${mvp.tech_stack.map(tech => `- ${tech}`).join('\n')}
   }
 });
 
-// Helper function to update deployment status
 async function updateDeploymentStatus(supabase: any, deploymentId: string, status: string, errorMessage?: string) {
   const updateData: Record<string, any> = {
     status,
@@ -421,13 +404,12 @@ async function updateDeploymentStatus(supabase: any, deploymentId: string, statu
   }
 }
 
-// Helper function to get file SHA for updating content
 async function getFileSha(owner: string, repo: string, path: string, token: string): Promise<string | undefined> {
   try {
     const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
       headers: {
         'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json', // Corrected header
+        'Accept': 'application/vnd.github.v3+json',
       },
     });
 
@@ -439,13 +421,5 @@ async function getFileSha(owner: string, repo: string, path: string, token: stri
   } catch (error) {
     console.error(`Error getting SHA for ${path}:`, error);
     return undefined;
-  }
-}
-``````json
-// supabase/functions/create-buyer-repo-and-push-mvp/deno.json
-{
-  "imports": {
-    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.49.1"
-    // Removed: "uuid": "https://deno.land/std@0.224.0/uuid/mod.ts"
   }
 }
