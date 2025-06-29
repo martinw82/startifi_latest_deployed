@@ -1,6 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { v4 } from 'uuid'; // Use the bare specifier 'uuid'
+import { v4.generate() } from 'uuid'; // Use the bare specifier 'uuid'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
