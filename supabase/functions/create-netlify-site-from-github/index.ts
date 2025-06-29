@@ -114,7 +114,18 @@ Deno.serve(async (req) => {
     }
 
     // Generate a unique site name based on the user's Netlify site name and the deployment ID
-    const baseSiteName = userData.netlify_site_name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    let baseSiteName = userData.netlify_site_name || 'mvp-project'; // Default if empty
+    baseSiteName = baseSiteName
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-') // Replace non-alphanumeric (except hyphen) with hyphen
+      .replace(/^-+|-+$/g, '')    // Remove leading/trailing hyphens
+      .replace(/-+/g, '-');       // Replace multiple hyphens with single hyphen
+
+    // Fallback if baseSiteName becomes empty after sanitization
+    if (!baseSiteName) {
+      baseSiteName = 'mvp-project';
+    }
+
     const uniqueSiteName = `${baseSiteName}-${deployment_id.substring(0, 8)}`;
 
     // Extract GitHub repository owner and name from the URL
