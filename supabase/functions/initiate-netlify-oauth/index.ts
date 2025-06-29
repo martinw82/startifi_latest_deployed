@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     const redirectUri = `${origin}/buyer-netlify-callback`;
     
     // Added 'scope=write:sites' to request necessary permissions
-    const netlifyAuthUrl = `https://app.netlify.com/authorize?client_id=${netlifyClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&response_type=code&scope=write:sites`;
+    const netlifyAuthUrl = `https://app.netlify.com/authorize?client_id=${netlifyClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&response_type=code`;
 
     console.log(`Generated Netlify OAuth URL for user ${user_id}: ${netlifyAuthUrl}`);
 
