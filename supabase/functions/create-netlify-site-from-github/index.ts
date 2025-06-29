@@ -195,7 +195,8 @@ Deno.serve(async (req) => {
           branch: 'main', // Specify the main branch for deployment
           cmd: 'npm run build', // The build command for your project
           dir: 'dist', // The publish directory after building
-          functions_dir: null, // Set to null if you don't have Netlify Functions
+          functions_dir: "", // Set to an empty string if you don't have Netlify Functions
+       
         },
       }),
     });
