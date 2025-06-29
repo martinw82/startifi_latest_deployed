@@ -33,6 +33,10 @@ Deno.serve(async (req) => {
 
     const { user_id, mvp_id } = await req.json();
 
+    // Log received parameters
+    console.log('initiate-buyer-github-oauth: Received user_id:', user_id);
+    console.log('initiate-buyer-github-oauth: Received mvp_id:', mvp_id);
+
     if (!user_id) {
       return new Response(
         JSON.stringify({ error: 'Missing required field: user_id' }),
@@ -53,7 +57,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (downloadError) {
-        console.error('Error checking download records:', downloadError);
+        console.error('initiate-buyer-github-oauth: Error checking download records:', downloadError);
         return new Response(
           JSON.stringify({ error: 'Failed to verify MVP access' }),
           {
@@ -64,6 +68,7 @@ Deno.serve(async (req) => {
       }
 
       if (!downloadData) {
+        console.warn('initiate-buyer-github-oauth: User has not purchased/downloaded this MVP.');
         return new Response(
           JSON.stringify({ error: 'User has not purchased/downloaded this MVP' }),
           {
@@ -75,8 +80,10 @@ Deno.serve(async (req) => {
     }
 
     const githubClientId = Deno.env.get('BUYER_GITHUB_CLIENT_ID');
+    console.log('initiate-buyer-github-oauth: Retrieved BUYER_GITHUB_CLIENT_ID:', githubClientId ? 'Set' : 'Not Set');
+
     if (!githubClientId) {
-      console.error('BUYER_GITHUB_CLIENT_ID environment variable is not set');
+      console.error('initiate-buyer-github-oauth: BUYER_GITHUB_CLIENT_ID environment variable is not set');
       return new Response(
         JSON.stringify({ error: 'GitHub App configuration error: Client ID missing' }),
         {
@@ -87,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     // Generate a unique state parameter to prevent CSRF attacks
-    const state = v4.generate(); // Use v4.generate() for UUID generation
+    const state = v4(); // Corrected: Call v4 directly
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // State valid for 5 minutes
 
     // Store the state, user_id, and mvp_id (if provided) in the database
@@ -107,7 +114,7 @@ Deno.serve(async (req) => {
       .insert([stateData]);
 
     if (insertError) {
-      console.error('Error storing GitHub OAuth state:', insertError);
+      console.error('initiate-buyer-github-oauth: Error storing GitHub OAuth state:', insertError);
       return new Response(
         JSON.stringify({ error: 'Failed to initiate GitHub OAuth process' }),
         {
@@ -124,9 +131,12 @@ Deno.serve(async (req) => {
     // Request scopes needed for repo creation and management
     const scope = 'repo'; // Full control of private repositories
     
+    console.log('initiate-buyer-github-oauth: Redirect URI:', redirectUri);
+    console.log('initiate-buyer-github-oauth: Scope:', scope);
+
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}`;
 
-    console.log(`Generated GitHub OAuth URL for user ${user_id}: ${githubAuthUrl}`);
+    console.log(`initiate-buyer-github-oauth: Generated GitHub OAuth URL: ${githubAuthUrl}`);
 
     return new Response(
       JSON.stringify({ github_auth_url: githubAuthUrl }),
@@ -137,7 +147,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Error in initiate-buyer-github-oauth function:', error);
+    console.error('initiate-buyer-github-oauth: Error in function:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
       {
@@ -147,3 +157,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+
