@@ -1,7 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { v4 as uuidv4 } from 'uuid'; // Import uuid for generating unique IDs
-
+import * as uuid from 'uuid'; // Import uuid for generating unique IDs
+ 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
