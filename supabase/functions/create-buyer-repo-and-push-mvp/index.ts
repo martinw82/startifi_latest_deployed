@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { v4 as uuidv4 } from 'https://deno.land/std@0.224.0/uuid/mod.ts';
+import { v4 } from 'https://deno.land/std@0.224.0/uuid/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
