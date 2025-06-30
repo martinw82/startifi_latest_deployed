@@ -2,7 +2,7 @@
 
 ## 🚀 What is the MVP Library Platform?
 
-The MVP Library Platform is your premier marketplace for **AI-ready Minimum Viable Product (MVP) codebases**. We provide a curated collection of high-quality, production-ready templates designed to help you launch your ideas faster and build smarter. Whether you're an entrepreneur, a seasoned developer, or an agency, our platform is built to streamline your development process and unlock new opportunities.
+The MVP Library Platform is your premier marketplace for **AI-ready Minimum Viable Product (MVP) codebases**. We provide a curated collection of high-quality, production-ready templates designed to help you launch your ideas faster and build smarter. Whether you're an entrepreneur, a seasoned developer, or an agency, our platform streamlines your development process and unlocks new opportunities.
 
 ## 🎯 Who is this for?
 
@@ -17,53 +17,62 @@ This platform is designed for:
 
 ### As a Buyer/Developer:
 
-*   **Browse & Discover MVPs**: Explore an extensive library of MVP templates across various categories (SaaS, E-commerce, Portfolio, etc.) and tech stacks (React, Next.js, Supabase, Stripe, AI tools, etc.).
-*   **Detailed MVP Information**: Each MVP comes with a comprehensive overview, including features, tech stack, detailed descriptions, and version history.
-*   **Interactive Previews**: View image galleries, live demos, and even access GitHub repositories (where available) to thoroughly evaluate an MVP before downloading.
-*   **User Reviews & Ratings**: See what other users think with a built-in review and rating system, and contribute your own feedback after using an MVP.
-*   **Download MVPs**: Easily download production-ready codebases to kickstart your projects. Your subscription plan determines your download quota, ensuring fair access.
-*   **Manage Your Downloads**: Keep track of all your downloaded MVPs in your personalized dashboard.
-*   **Subscription Management**: View and manage your subscription plan, including billing details and upcoming renewals with secure Stripe integration.
+*   **Browse & Discover MVPs**: Explore an extensive library of templates across various categories (SaaS, E-commerce, Portfolio, etc.) and tech stacks with advanced filtering options including price range, licensing terms, and technology selection.
+*   **Detailed MVP Information**: Access comprehensive overviews with features, tech stack, detailed descriptions, and version history for each template.
+*   **Interactive Previews**: View image galleries, live demos, and GitHub repositories to thoroughly evaluate MVPs before downloading.
+*   **User Reviews & Ratings**: Read verified buyer reviews with star ratings and contribute your own feedback after using an MVP.
+*   **Download MVPs**: Download production-ready codebases to kickstart your projects, with subscription-based download quotas.
+*   **One-Click Deployment**: Deploy any purchased MVP directly to Netlify with a single click, with automatic GitHub repository creation.
+*   **Dispute Resolution**: Report issues with purchased MVPs through our comprehensive dispute resolution system.
+*   **Refund Requests**: Submit refund requests for subscriptions when necessary, with a transparent approval process.
+*   **Real-Time Notifications**: Stay updated on your downloads, disputes, refunds, and other activities through our notification system.
+*   **Enhanced Profile**: Customize your user profile with social links, bio, and portfolio information.
+*   **Manage Subscriptions**: View and manage your subscription plan, including billing details and renewal information.
 
 ### As a Seller:
 
-*   **Become a Seller**: Apply through a multi-step application process to join our community of trusted MVP creators.
-*   **Upload Your MVPs**: Once approved, easily upload your own MVP codebases, including source files, detailed descriptions, features, tech stack, and multiple preview images. Our intuitive form guides you through the process with validation and progress tracking.
-*   **Manage Your Portfolio**: View and manage all your uploaded MVPs from your seller dashboard, track their status (pending review, approved, rejected), and see key metrics like downloads and average ratings.
-*   **Stripe Connect Integration**: Connect your Stripe account for secure, automated payouts directly to your bank account. Our platform handles all payment processing and commission calculations.
-*   **Track Earnings & Analytics**: Monitor your MVP's performance with detailed analytics including:
+*   **Complete Seller Portal**: Apply through our multi-step application process and manage your MVP portfolio from a dedicated dashboard.
+*   **Advanced Upload System**: Upload your MVP codebases with our intuitive form, including detailed descriptions, features, tech stack, and multiple preview images.
+*   **GitHub Integration**: Connect your GitHub repositories for automatic updates when you push new code or create releases.
+*   **Version Management**: Track version history with detailed changelogs and automatic version incrementing.
+*   **Portfolio Analytics**: Monitor your MVPs' performance with comprehensive statistics on downloads, ratings, and earnings.
+*   **Seller Profile Page**: Showcase your expertise with a public profile page featuring your published MVPs and portfolio information.
+*   **Secure Payments**: Connect your Stripe account via Stripe Connect for secure, automated payouts directly to your bank account.
+*   **Financial Dashboard**: Track your earnings with detailed breakdowns:
     *   Monthly earnings breakdown with 70% seller commission
     *   Total downloads and revenue statistics
     *   Payout history and status tracking
     *   Platform fee transparency (30% platform fee covers hosting, support, and payment processing)
-*   **Automatic Seller Approval**: Once you complete Stripe Connect onboarding, you're automatically approved to start selling, streamlining the process.
-*   **Monthly Payouts**: Receive automated monthly payouts on the 1st of each month for the previous month's sales, sent directly to your connected bank account.
-*   **GitHub Integration (In Progress)**: Link your MVPs to GitHub repositories for automatic updates. This feature allows for seamless synchronization of your MVP with your GitHub repo, ensuring your listings are always up-to-date with your latest code changes or releases.
+*   **Dispute Management**: Handle buyer disputes through our structured resolution system with clear communication channels.
+*   **Notification System**: Receive real-time alerts about new downloads, reviews, payouts, and other important events.
+*   **Automatic Updates**: Your MVPs automatically update when you push new code to connected GitHub repositories.
+*   **Custom Licensing**: Choose from multiple licensing options for your MVPs including standard commercial, premium commercial, and personal use only.
 
 ### As an Administrator (Platform Team):
 
 *   **Platform Overview**: Get a high-level view of key platform statistics, including total users, sellers, MVPs, revenue, and downloads.
 *   **MVP Review Queue**: Efficiently review and manage pending MVP submissions, with options to approve or reject them.
-*   **Payout Management**: Monitor and process seller payouts with integrated Stripe Connect management:
-    *   View pending payouts across all sellers
-    *   Process monthly commission payments
-    *   Track payout statuses and handle any transfer issues
-    *   Automated payout processing with manual oversight capabilities
-*   **User Management**: Access tools to manage user accounts and roles (future enhancement).
-*   **Analytics**: Gain insights into platform performance and user behavior (future enhancement).
+*   **Comprehensive User Management**: Access tools to manage user accounts, roles, and permissions across the platform.
+*   **Dispute Resolution**: Mediate and resolve disputes between buyers and sellers with full context and history.
+*   **Refund Management**: Review and process refund requests with approval workflows.
+*   **Payout Processing**: Monitor and process seller payouts with integrated Stripe Connect management.
+*   **Security Monitoring**: Track sensitive operations through the audit log system.
+*   **Platform Analytics**: Access detailed insights into platform performance, user behavior, and financial metrics.
+*   **Content Moderation**: Manage MVP content quality with approval workflows and security scanning.
 
 ## 💡 Why do you need the MVP Library Platform?
 
-*   **Launch Faster**: Stop wasting time on boilerplate code. Our production-ready MVPs allow you to skip foundational development and jump straight into building your unique features.
-*   **Build Smarter**: Leverage AI-ready codebases designed for modern development practices, ensuring your projects are scalable, maintainable, and future-proof.
-*   **Monetize Your Expertise**: If you're a developer with great ideas, our platform provides a seamless way to turn your code into a revenue stream with:
-    *   Fair 70% commission rate (industry-leading)
+*   **Launch Faster**: Skip months of boilerplate development with our production-ready MVPs and focus on building your unique features.
+*   **One-Click Deployment**: Deploy any purchased MVP directly to Netlify with automatic GitHub repository creation.
+*   **Build Smarter**: Access AI-ready codebases designed for modern development practices, ensuring scalability and maintainability.
+*   **Monetize Your Expertise**: Turn your code into a revenue stream with our seller-friendly platform:
+    *   Industry-leading 70% commission rate
     *   Automated monthly payouts via Stripe Connect
     *   Global reach with multi-currency support
     *   No upfront fees or listing costs
-*   **Quality & Security**: All MVPs undergo rigorous review processes, and the platform is built with robust authentication and security measures (like Row Level Security) to protect your data.
+*   **Quality & Security**: All MVPs undergo rigorous review and security scanning before approval.
 *   **Seamless User Experience**: Enjoy a modern, responsive, and intuitive interface with smooth navigation and clear feedback, making your journey on the platform enjoyable and efficient.
-*   **Trusted Payment Processing**: Secure transactions powered by Stripe with buyer protection and seller payout guarantees.
+*   **Complete Ecosystem**: From discovery to deployment, we provide all the tools you need to succeed.
 
 ## 💰 Earning as a Seller
 
@@ -72,17 +81,18 @@ This platform is designed for:
 *   **30% Platform Fee**: Covers hosting, payment processing, customer support, and platform maintenance
 
 ### Payout System
-*   **Monthly Payouts**: Automatic payouts on the 1st of each month
-*   **Direct Bank Transfer**: Payments sent directly to your bank account via Stripe Connect
+*   **Automated Payouts**: Secure monthly transfers on the 1st of each month
+*   **Direct Deposits**: Payments sent directly to your bank account via Stripe Connect
 *   **Global Support**: Accept payments from customers worldwide in multiple currencies
-*   **Real-time Tracking**: Monitor your earnings and payout status in real-time
+*   **Real-time Tracking**: Track your earnings, downloads, and payout status in real-time
 *   **Tax Support**: Detailed earning reports for tax purposes
 
 ### Getting Started as a Seller
-1. **Apply**: Complete our seller application with your experience and portfolio
-2. **Connect Stripe**: Set up your Stripe Connect account for secure payouts
-3. **Automatic Approval**: Get approved automatically once Stripe onboarding is complete
-4. **Start Selling**: Upload your first MVP and start earning
+1. **Apply**: Complete our multi-step seller application with your experience and portfolio
+2. **Connect GitHub**: Link your GitHub account for repository integration and automatic updates
+3. **Set Up Payments**: Connect your Stripe account for secure payouts
+4. **Upload Your MVPs**: Create detailed listings with our comprehensive upload form
+5. **Start Earning**: Receive 70% commission on every sale automatically
 
 ---
 
@@ -90,13 +100,14 @@ This platform is designed for:
 
 For testing purposes, you can log in with a special beta account that has full buyer, seller, and admin access.
 
-*   **Username**: `beta`
-*   **Password**: `beta`
+- **Username**: `beta`
+- **Password**: `beta`
 
-Simply go to the sign-in page and click the "Beta Access" button for instant access to all features, including:
-*   Full seller capabilities with pre-connected Stripe account
-*   Sample earnings and payout history
-*   Admin dashboard access
-*   Unlimited download quota for testing
-*   Access to all MVP upload and management features
-*   Complete platform demonstration capabilities
+Simply click the "Beta Access" button on the sign-in page for instant access to all features:
+- Full buyer, seller, and admin capabilities
+- Pre-connected Stripe account with sample earnings
+- Unlimited download quota (999 downloads)
+- GitHub and Netlify integrations
+- Dispute and refund management
+- Notification system access
+- All premium features unlocked
