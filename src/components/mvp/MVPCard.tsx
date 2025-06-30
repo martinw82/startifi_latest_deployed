@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Star, Download, ExternalLink, Github } from 'lucide-react';
 import { GlassCard } from '../ui/GlassCard';
 import { GlossyButton } from '../ui/GlossyButton';
+import { Link } from 'react-router-dom';
 import type { MVP } from '../../types';
 
 interface MVPCardProps {
@@ -71,6 +72,17 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
           </div>
           
           <div className="flex items-center space-x-2">
+            {/* Seller Link - if seller info is available */}
+            {mvp.seller && mvp.seller.username && (
+              <Link 
+                to={`/seller/${mvp.seller.username}`} 
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs text-cyber-gray hover:text-neon-cyan transition-colors"
+              >
+                by @{mvp.seller.username}
+              </Link>
+            )}
+            
             {mvp.demo_url && (
               <motion.a
                 href={mvp.demo_url}

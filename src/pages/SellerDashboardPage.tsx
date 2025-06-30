@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Upload, DollarSign, Eye, Star, TrendingUp, Package, Plus, Edit } from 'lucide-react';
+import { Upload, DollarSign, Eye, Star, TrendingUp, Package, Plus, Edit, Download } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
-import { MVPUploadService } from '../lib/mvpUpload';
-import type { MVP } from '../types';
+import { supabase } from '../lib/supabase';
+import { MVPUploadService } from '../lib/mvpUpload'; 
+import type { MVP, Download } from '../types';
 
 export const SellerDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [mvps, setMvps] = useState<MVP[]>([]);
+  const [recentDownloads, setRecentDownloads] = useState<Download[]>([]);
+  const [earnings, setEarnings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalDownloads: 0,
@@ -28,15 +31,50 @@ export const SellerDashboardPage: React.FC = () => {
   const loadSellerData = async () => {
     try {
       setLoading(true);
-      const userMVPs = await MVPUploadService.getUserMVPs(user!.id);
+      
+      // Fetch seller's MVPs
+      const userMVPs = await MVPUploadService.getUserMVPs(user?.id || '');
       setMvps(userMVPs);
       
-      // Calculate stats
-      const totalDownloads = userMVPs.reduce((sum, mvp) => sum + mvp.download_count, 0);
-      const totalEarnings = totalDownloads * 2.5; // Assuming $2.50 per download
-      const averageRating = userMVPs.length > 0 
-        ? userMVPs.reduce((sum, mvp) => sum + mvp.average_rating, 0) / userMVPs.length 
-        : 0;
+      // Fetch recent downloads
+      const mvpIds = userMVPs.map(mvp => mvp.id);
+      
+      if (mvpIds.length > 0) {
+        // Use Supabase query to get downloads for all seller's MVPs
+        const { data: downloadsData, error: downloadsError } = await supabase
+          .from('downloads')
+          .select(`
+            *,
+            mvps(id, title, slug, preview_images)
+          `)
+          .in('mvp_id', mvpIds)
+          .order('downloaded_at', { ascending: false })
+          .limit(5);
+        
+        if (downloadsError) {
+          console.error('Error fetching downloads:', downloadsError);
+        } else {
+          setRecentDownloads(downloadsData || []);
+        }
+        
+        // Fetch actual earnings data
+        const { data: earningsData, error: earningsError } = await supabase
+          .from('payouts')
+          .select('*')
+          .eq('seller_id', user?.id)
+          .order('created_at', { ascending: false });
+        
+        if (earningsError) {
+          console.error('Error fetching earnings:', earningsError);
+        } else {
+          setEarnings(earningsData || []);
+        }
+      }
+      
+      // Calculate aggregate stats
+      const totalDownloads = await getTotalDownloads(user?.id || '');
+      const totalEarnings = await getTotalEarnings(user?.id || '');
+      const averageRating = await getAverageRating(userMVPs);
       const activeMVPs = userMVPs.filter(mvp => mvp.status === 'approved').length;
       
       setStats({
@@ -49,6 +87,66 @@ export const SellerDashboardPage: React.FC = () => {
       console.error('Error loading seller data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getTotalDownloads = async (userId: string): Promise<number> => {
+    try {
+      // For beta user, return mock data
+      if (userId === 'beta-user-123') {
+        return 1247;
+      }
+      
+      const { count, error } = await supabase
+        .from('downloads')
+        .select('*', { count: 'exact', head: true })
+        .in('mvp_id', mvps.map(mvp => mvp.id));
+      
+      if (error) {
+        console.error('Error counting downloads:', error);
+        return 0;
+      }
+      
+      return count || 0;
+    } catch (error) {
+      console.error('Error in getTotalDownloads:', error);
+      return 0;
+    }
+  };
+
+  const getTotalEarnings = async (userId: string): Promise<number> => {
+    try {
+      // For beta user, return mock data
+      if (userId === 'beta-user-123') {
+        return 3117.50;
+      }
+      
+      const { data, error } = await supabase
+        .from('payouts')
+        .select('commission_amount')
+        .eq('seller_id', userId);
+      
+      if (error) {
+        console.error('Error fetching earnings:', error);
+        return 0;
+      }
+      
+      return data?.reduce((sum, payout) => sum + Number(payout.commission_amount), 0) || 0;
+    } catch (error) {
+      console.error('Error in getTotalEarnings:', error);
+      return 0;
+    }
+  };
+
+  const getAverageRating = async (userMVPs: MVP[]): Promise<number> => {
+    try {
+      if (!userMVPs.length) return 0;
+      
+      const totalRating = userMVPs.reduce((sum, mvp) => sum + mvp.average_rating, 0);
+      return totalRating / userMVPs.length;
+    } catch (error) {
+      console.error('Error in getAverageRating:', error);
+      return 0;
     }
   };
 
@@ -191,7 +289,7 @@ export const SellerDashboardPage: React.FC = () => {
               <GlassCard className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
-                    <Package className="w-5 h-5 mr-2 text-blue-600" />
+                    <Package className="w-5 h-5 mr-2 text-neon-green" />
                     My MVPs
                   </h2>
                   <Link to="/my-mvps">
@@ -294,19 +392,19 @@ export const SellerDashboardPage: React.FC = () => {
                 <div className="space-y-3">
                   <Link to="/upload" className="block w-full">
                     <GlossyButton className="w-full justify-start" variant="outline">
-                      <Upload className="w-4 h-4 mr-2" />
+                      <Upload className="w-4 h-4 mr-2 text-neon-green" />
                       Upload New MVP
                     </GlossyButton>
                   </Link>
                   <Link to="/payouts" className="block w-full">
                     <GlossyButton className="w-full justify-start" variant="outline">
-                      <DollarSign className="w-4 h-4 mr-2" />
+                      <DollarSign className="w-4 h-4 mr-2 text-neon-green" />
                       View Payouts
                     </GlossyButton>
                   </Link>
                   <Link to="/analytics" className="block w-full">
                     <GlossyButton className="w-full justify-start" variant="outline">
-                      <TrendingUp className="w-4 h-4 mr-2" />
+                      <TrendingUp className="w-4 h-4 mr-2 text-neon-green" />
                       Analytics
                     </GlossyButton>
                   </Link>
@@ -353,6 +451,117 @@ export const SellerDashboardPage: React.FC = () => {
               </GlassCard>
             </motion.div>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Recent Downloads */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            <GlassCard className="p-6 h-full">
+              <div className="flex items-center mb-6">
+                <Download className="w-5 h-5 mr-2 text-neon-green" />
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Recent Downloads
+                </h2>
+              </div>
+
+              {recentDownloads.length > 0 ? (
+                <div className="space-y-4">
+                  {recentDownloads.map((download) => (
+                    <div key={download.id} className="flex items-center p-3 bg-white/5 rounded-xl">
+                      <img
+                        src={download.mvps?.preview_images?.[0] || 'https://via.placeholder.com/50'}
+                        alt={download.mvps?.title || 'MVP'}
+                        className="w-10 h-10 rounded-lg object-cover mr-3"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 dark:text-white text-sm">
+                          {download.mvps?.title || 'Unknown MVP'}
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          Downloaded {new Date(download.downloaded_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span className="bg-midnight-700/50 px-2 py-1 text-xs rounded-full text-neon-green border border-neon-green/30">
+                        {download.month_year}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <Download className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 dark:text-gray-300">
+                    No downloads yet
+                  </p>
+                </div>
+              )}
+            </GlassCard>
+          </motion.div>
+
+          {/* Recent Earnings */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+          >
+            <GlassCard className="p-6 h-full">
+              <div className="flex items-center mb-6">
+                <DollarSign className="w-5 h-5 mr-2 text-neon-green" />
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Recent Earnings
+                </h2>
+              </div>
+
+              {earnings.length > 0 ? (
+                <div className="space-y-4">
+                  {earnings.slice(0, 5).map((earning) => (
+                    <div key={earning.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-gradient-to-r from-neon-green to-neon-cyan rounded-lg flex items-center justify-center mr-3">
+                          <DollarSign className="w-6 h-6 text-midnight-900" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white text-sm">
+                            {earning.month_year}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {earning.total_downloads} downloads
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-neon-green">
+                          ${Number(earning.commission_amount).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {earning.status}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 dark:text-gray-300">
+                    No earnings yet
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <Link to="/payouts">
+                  <GlossyButton variant="outline" size="sm" className="w-full">
+                    View All Payouts
+                  </GlossyButton>
+                </Link>
+              </div>
+            </GlassCard>
+          </motion.div>
         </div>
       </div>
     </div>
