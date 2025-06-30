@@ -1,6 +1,6 @@
 // supabase/functions/subscribe-to-newsletter/index.ts
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
