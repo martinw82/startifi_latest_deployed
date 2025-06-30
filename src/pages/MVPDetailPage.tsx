@@ -1,7 +1,7 @@
 // src/pages/MVPDetailPage.tsx
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { APIService, DeploymentService } from '../lib/api';
+import { APIService, DeploymentService, NotificationService } from '../lib/api';
 import type { MVP, Review } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { Loader2, AlertTriangle, ExternalLink, Github, Download, Globe, Code } from 'lucide-react';
@@ -84,6 +84,19 @@ export const MVPDetailPage: React.FC = () => {
   const handleReviewSubmitted = useCallback(() => {
     setReviewSubmitMessage("Review submitted successfully! Refreshing reviews...");
     if (mvp) {
+      // Notify the seller of the new review
+      try {
+        await NotificationService.createNotification({
+          user_id: mvp.seller_id,
+          type: 'new_review',
+          message: `Someone left a new ${ratingToText(reviewData.rating)} review on your MVP "${mvp.title}"`,
+          link: `/mvp/${mvp.id}`
+        });
+      } catch (notificationError) {
+        console.error('Error creating notification:', notificationError);
+        // Don't fail the action if notification creation fails
+      }
+      
       fetchMVPReviews(mvp.id);
     }
     setTimeout(() => setReviewSubmitMessage(''), 3000);
@@ -184,6 +197,15 @@ export const MVPDetailPage: React.FC = () => {
       setDeploymentMessage(error.message || 'Failed to deploy MVP');
       setIsDeploying(false);
     }
+  };
+
+  // Helper function to convert rating to text description
+  const ratingToText = (rating: number): string => {
+    if (rating >= 5) return "excellent";
+    if (rating >= 4) return "great";
+    if (rating >= 3) return "good";
+    if (rating >= 2) return "fair";
+    return "poor";
   };
 
   // Helper function to sanitize filename
@@ -367,6 +389,19 @@ export const MVPDetailPage: React.FC = () => {
                     link.click();
                     document.body.removeChild(link);
 
+                    // Create notification about the download
+                    try {
+                      await NotificationService.createNotification({
+                        user_id: mvp.seller_id,
+                        type: 'new_download',
+                        message: `Someone downloaded your MVP "${mvp.title}"`,
+                        link: `/mvp/${mvp.id}`
+                      });
+                    } catch (notificationError) {
+                      console.error('Error creating notification:', notificationError);
+                      // Don't fail the download if notification creation fails
+                    }
+                    
                     setDownloadMessage(
                       <span className="text-green-600 dark:text-green-400">
                         Your download will begin shortly. If it does not, please{' '}
