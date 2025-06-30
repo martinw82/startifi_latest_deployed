@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Upload, DollarSign, Eye, Star, TrendingUp, Package, Plus, Edit, Download } from 'lucide-react';
+import { Upload, DollarSign, Eye, Star, TrendingUp, Package, Plus, Edit, DownloadIcon } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { MVPUploadService } from '../lib/mvpUpload'; 
-import type { MVP, Download } from '../types';
+import type { MVP, DownloadIcon } from '../types';
 
 export const SellerDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [mvps, setMvps] = useState<MVP[]>([]);
-  const [recentDownloads, setRecentDownloads] = useState<Download[]>([]);
+  const [recentDownloads, setRecentDownloads] = useState<DownloadIcon[]>([]);
   const [earnings, setEarnings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -462,7 +462,7 @@ export const SellerDashboardPage: React.FC = () => {
           >
             <GlassCard className="p-6 h-full">
               <div className="flex items-center mb-6">
-                <Download className="w-5 h-5 mr-2 text-neon-green" />
+                <DownloadIcon className="w-5 h-5 mr-2 text-neon-green" />
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                   Recent Downloads
                 </h2>
@@ -493,7 +493,7 @@ export const SellerDashboardPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-center py-10">
-                  <Download className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <DownloadIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600 dark:text-gray-300">
                     No downloads yet
                   </p>
