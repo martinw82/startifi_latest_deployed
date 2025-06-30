@@ -113,17 +113,17 @@ export const HomePage: React.FC = () => {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative pt-24 pb-16 overflow-hidden">
-        {/* Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-midnight-900 via-midnight-800 to-midnight-700" />
+        {/* Background Elements */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-blue-50 to-indigo-50 dark:from-midnight-900 dark:via-midnight-800 dark:to-midnight-700 transition-colors duration-300" />
         
-        {/* Particle/Grid Background */}
-        <div className="absolute inset-0 bg-cyber-grid bg-[length:50px_50px] opacity-10" />
+        {/* Grid Background - different for light/dark */}
+        <div className="absolute inset-0 bg-light-grid dark:bg-cyber-grid bg-[length:50px_50px] opacity-10" />
         
         {/* Glowing Orbs (Background Effect) */}
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-neon-cyan/20 rounded-full filter blur-3xl animate-pulse-slow"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-neon-violet/20 rounded-full filter blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-400/20 dark:bg-neon-cyan/20 rounded-full filter blur-3xl animate-pulse-slow transition-colors duration-300"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-indigo-400/20 dark:bg-neon-violet/20 rounded-full filter blur-3xl animate-pulse-slow transition-colors duration-300" style={{ animationDelay: '1s' }}></div>
         
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%239C92AC%22 fill-opacity=%220.1%22%3E%3Ccircle cx=%2230%22 cy=%2230%22 r=%224%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%239C92AC%22 fill-opacity=%220.1%22%3E%3Ccircle cx=%2230%22 cy=%2230%22 r=%224%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-10 dark:opacity-20" />
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
@@ -133,13 +133,13 @@ export const HomePage: React.FC = () => {
               transition={{ duration: 0.8 }}
             >
               <h1 className="text-4xl md:text-6xl font-bold text-cyber-white mb-6">
-                Launch Faster.{' '}
-                <span className="bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent animate-glow">
+                <span className="text-cyber-black dark:text-cyber-white transition-colors duration-300">Launch Faster.{' '}</span>
+                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-neon-green dark:to-neon-cyan bg-clip-text text-transparent dark:animate-glow">
                   Build Smarter.
                 </span>
               </h1>
               
-              <p className="text-xl text-cyber-gray mb-8 max-w-3xl mx-auto">
+              <p className="text-xl text-gray-600 dark:text-cyber-gray mb-8 max-w-3xl mx-auto transition-colors duration-300">
                 Access a premium library of AI-ready MVP codebases. 
                 Skip the boilerplate, accelerate your development, and launch your ideas faster than ever.
               </p>
@@ -165,11 +165,11 @@ export const HomePage: React.FC = () => {
                     transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
                   >
                     <GlassCard className="p-6 text-center">
-                      <stat.icon className="w-8 h-8 text-neon-green mx-auto mb-2" />
-                      <div className="text-2xl font-bold text-cyber-white mb-1">
+                      <stat.icon className="w-8 h-8 text-blue-600 dark:text-neon-green mx-auto mb-2 transition-colors duration-300" />
+                      <div className="text-2xl font-bold text-gray-900 dark:text-cyber-white mb-1 transition-colors duration-300">
                         {stat.value}
                       </div>
-                      <div className="text-sm text-cyber-gray">
+                      <div className="text-sm text-gray-600 dark:text-cyber-gray transition-colors duration-300">
                         {stat.label}
                       </div>
                     </GlassCard>
@@ -182,7 +182,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Featured MVPs */}
-      <section className="py-16 bg-gradient-to-b from-transparent to-midnight-800/50">
+      <section className="py-16 bg-gradient-to-b from-transparent to-gray-100/50 dark:to-midnight-800/50 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-12"
@@ -190,10 +190,10 @@ export const HomePage: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-cyber-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-cyber-white mb-4 transition-colors duration-300">
               Featured MVPs
             </h2>
-            <p className="text-lg text-cyber-gray max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-cyber-gray max-w-2xl mx-auto transition-colors duration-300">
               Discover our most popular and highly-rated MVP templates from our growing library.
             </p>
           </motion.div>
@@ -215,10 +215,10 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 relative overflow-hidden">
+      <section className="py-16 relative overflow-hidden transition-colors duration-300">
         {/* Background Elements */}
-        <div className="absolute -right-64 top-1/3 w-96 h-96 bg-neon-violet/10 rounded-full filter blur-[100px]"></div>
-        <div className="absolute -left-64 bottom-1/3 w-96 h-96 bg-neon-cyan/10 rounded-full filter blur-[100px]"></div>
+        <div className="absolute -right-64 top-1/3 w-96 h-96 bg-indigo-200/40 dark:bg-neon-violet/10 rounded-full filter blur-[100px] transition-colors duration-300"></div>
+        <div className="absolute -left-64 bottom-1/3 w-96 h-96 bg-blue-200/40 dark:bg-neon-cyan/10 rounded-full filter blur-[100px] transition-colors duration-300"></div>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -228,10 +228,10 @@ export const HomePage: React.FC = () => {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-cyber-white mb-4">
-              Why Choose MVP Library?
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-cyber-white mb-4 transition-colors duration-300">
+              Why Choose Startifi?
             </h2>
-            <p className="text-lg text-cyber-gray max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-cyber-gray max-w-2xl mx-auto transition-colors duration-300">
               We're not just another code marketplace. We're your development acceleration platform.
             </p>
           </motion.div>
@@ -245,14 +245,14 @@ export const HomePage: React.FC = () => {
                 transition={{ duration: 0.8, delay: index * 0.2 }}
                 viewport={{ once: true }}
               >
-                <GlassCard className="p-8 text-center h-full card-3d">
-                  <div className="w-16 h-16 bg-gradient-to-r from-neon-green to-neon-cyan rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-neon-green-glow">
-                    <feature.icon className="w-8 h-8 text-midnight-900" />
+                <GlassCard className="p-8 text-center h-full card-3d bg-white dark:bg-white/10 transition-colors duration-300">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-neon-green dark:to-neon-cyan rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md dark:shadow-neon-green-glow transition-all duration-300">
+                    <feature.icon className="w-8 h-8 text-white dark:text-midnight-900 transition-colors duration-300" />
                   </div>
-                  <h3 className="text-xl font-semibold text-cyber-white mb-4">
-                    <span className="text-neon-green">{feature.title}</span>
+                  <h3 className="text-xl font-semibold mb-4">
+                    <span className="text-blue-600 dark:text-neon-green transition-colors duration-300">{feature.title}</span>
                   </h3>
-                  <p className="text-cyber-gray">
+                  <p className="text-gray-600 dark:text-cyber-gray transition-colors duration-300">
                     {feature.description}
                   </p>
                 </GlassCard>
@@ -263,7 +263,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-neon-green to-neon-cyan">
+      <section className="py-16 bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-neon-green dark:to-neon-cyan transition-colors duration-300">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -271,23 +271,23 @@ export const HomePage: React.FC = () => {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-midnight-900 mb-6">
+            <h2 className="text-3xl md:text-4xl font-bold text-white dark:text-midnight-900 mb-6 transition-colors duration-300">
               Ready to Accelerate Your Development?
             </h2>
-            <p className="text-xl text-midnight-800 mb-8">
-              Join thousands of developers who are building faster with our AI-ready MVP library.
+            <p className="text-xl text-white/90 dark:text-midnight-800 mb-8 transition-colors duration-300">
+              Join thousands of developers who are building faster with Startifi's AI-ready templates.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <GlossyButton 
                 size="lg" 
-                className="bg-midnight-900 text-neon-green hover:bg-midnight-800 border-2 border-neon-green shadow-neon-green-glow"
+                className="bg-white text-blue-600 hover:bg-gray-50 border-2 border-white dark:bg-midnight-900 dark:text-neon-green dark:hover:bg-midnight-800 dark:border-neon-green dark:shadow-neon-green-glow shadow-lg transition-all duration-300"
               >
                 Get Started Free
               </GlossyButton>
               <GlossyButton 
                 size="lg" 
                 variant="outline"
-                className="border-midnight-900 text-midnight-900 hover:bg-midnight-900/10"
+                className="border-white text-white hover:bg-white/10 dark:border-midnight-900 dark:text-midnight-900 dark:hover:bg-midnight-900/10 transition-all duration-300"
               >
                 Become a Seller
               </GlossyButton>
