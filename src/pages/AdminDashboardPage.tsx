@@ -28,8 +28,6 @@ import {
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { NewsletterTypesManagement } from '../components/admin/NewsletterTypesManagement';
-import { UserSubscriptionsManagement } from '../components/admin/UserSubscriptionsManagement';
-import { NewsletterSubscribersManagement } from '../components/admin/NewsletterSubscribersManagement';
 import { NewsletterTypesManagement, UserSubscriptionsManagement, NewsletterSubscribersManagement } from '../components/admin';
 import { useAuth } from '../hooks/useAuth';
 import { NotificationService } from '../lib/api';
