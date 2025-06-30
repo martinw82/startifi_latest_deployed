@@ -53,8 +53,8 @@ export const Footer: React.FC = () => {
               className="flex items-center space-x-2 mb-4"
               whileHover={{ scale: 1.05 }}
             >
-              <Code2 className="w-8 h-8 text-neon-cyan" />
-              <span className="text-xl font-bold bg-gradient-to-r from-neon-cyan to-neon-violet bg-clip-text text-transparent">MVP Library</span>
+              <Code2 className="w-8 h-8 text-neon-green" />
+              <span className="text-xl font-bold bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent">MVP Library</span>
             </motion.div>
             <p className="text-cyber-gray mb-6">
               Accelerate your development with AI-ready MVP codebases. 
@@ -69,11 +69,11 @@ export const Footer: React.FC = () => {
                 <motion.a
                   key={index}
                   href={social.href}
-                  className="p-2 rounded-full bg-midnight-800/50 hover:bg-midnight-700/70 transition-colors border border-neon-cyan/10 shadow-neon-glow-sm"
+                  className="p-2 rounded-full bg-midnight-800/50 hover:bg-midnight-700/70 transition-colors border border-neon-green/20 shadow-neon-green-glow-sm"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
-                  <social.icon className="w-5 h-5 text-neon-cyan" />
+                  <social.icon className="w-5 h-5 text-neon-green" />
                 </motion.a>
               ))}
             </div>
@@ -89,7 +89,7 @@ export const Footer: React.FC = () => {
                     {link.href.startsWith('/') ? (
                       <Link to={link.href}>
                         <motion.a
-                          className="text-cyber-gray hover:text-neon-cyan transition-colors"
+                          className="text-cyber-gray hover:text-neon-green transition-colors"
                           whileHover={{ x: 4 }}
                         >
                           {link.label}
@@ -98,7 +98,7 @@ export const Footer: React.FC = () => {
                     ) : (
                       <motion.a
                         href={link.href}
-                        className="text-cyber-gray hover:text-neon-cyan transition-colors"
+                        className="text-cyber-gray hover:text-neon-green transition-colors"
                         whileHover={{ x: 4 }}
                       >
                         {link.label}
@@ -111,7 +111,7 @@ export const Footer: React.FC = () => {
           ))}
         </div>
 
-        <div className="border-t border-neon-cyan/10 mt-12 pt-8">
+        <div className="border-t border-neon-green/20 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-cyber-gray">
               © 2025 MVP Library. All rights reserved.

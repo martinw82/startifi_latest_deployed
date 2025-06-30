@@ -24,7 +24,7 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
         
         {/* Category Badge */}
         <div className="absolute top-3 left-3">
-          <span className="px-3 py-1 text-xs font-medium bg-gradient-to-r from-neon-cyan to-neon-violet text-cyber-white rounded-full shadow-neon-glow-sm">
+          <span className="px-3 py-1 text-xs font-medium bg-gradient-to-r from-neon-green to-neon-cyan text-midnight-900 font-bold rounded-full shadow-neon-green-glow-sm">
             {mvp.category}
           </span>
         </div>
@@ -33,7 +33,7 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
       {/* Content */}
       <div className="flex-grow">
         <h3 className="text-xl font-bold text-cyber-white mb-2 line-clamp-2">
-          {mvp.title}
+          <span className="text-neon-green">{mvp.title}</span>
         </h3>
         
         <p className="text-cyber-gray text-sm mb-4 line-clamp-2">
@@ -45,7 +45,7 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
           {mvp.tech_stack.slice(0, 3).map((tech) => (
             <span
               key={tech}
-              className="px-2 py-1 text-xs bg-midnight-800/50 text-neon-cyan border border-neon-cyan/20 rounded-full"
+              className="px-2 py-1 text-xs bg-midnight-800/50 text-neon-green border border-neon-green/30 rounded-full"
             >
               {tech}
             </span>
@@ -61,7 +61,7 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-1">
-              <Star className="w-4 h-4 text-neon-green fill-current" />
+              <Star className="w-4 h-4 text-neon-green_bright fill-current" />
               <span className="text-sm font-medium text-cyber-white">{mvp.average_rating.toFixed(1)}</span>
             </div>
             <div className="flex items-center space-x-1">
@@ -76,7 +76,7 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
                 href={mvp.demo_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-1.5 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 transition-colors"
+                className="p-1.5 rounded-full bg-neon-green/10 text-neon-green border border-neon-green/30 hover:bg-neon-green/20 transition-colors"
                 whileHover={{ scale: 1.1 }}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -100,7 +100,7 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
       </div>
 
       {/* Action Button */}
-      <GlossyButton size="sm" className="w-full">
+      <GlossyButton size="sm" className="w-full bg-gradient-to-r from-neon-green to-neon-cyan text-midnight-900 font-bold">
         View Details
       </GlossyButton>
     </GlassCard>

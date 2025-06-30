@@ -134,7 +134,7 @@ export const HomePage: React.FC = () => {
             >
               <h1 className="text-4xl md:text-6xl font-bold text-cyber-white mb-6">
                 Launch Faster.{' '}
-                <span className="bg-gradient-to-r from-neon-cyan to-neon-violet bg-clip-text text-transparent animate-glow">
+                <span className="bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent animate-glow">
                   Build Smarter.
                 </span>
               </h1>
@@ -160,12 +160,12 @@ export const HomePage: React.FC = () => {
                 {stats.map((stat, index) => (
                   <motion.div
                     key={stat.label}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
                   >
                     <GlassCard className="p-6 text-center">
-                      <stat.icon className="w-8 h-8 text-neon-cyan mx-auto mb-2" />
+                      <stat.icon className="w-8 h-8 text-neon-green mx-auto mb-2" />
                       <div className="text-2xl font-bold text-cyber-white mb-1">
                         {stat.value}
                       </div>
@@ -239,18 +239,18 @@ export const HomePage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
+                key={feature.title} 
+                initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: index * 0.2 }}
                 viewport={{ once: true }}
               >
                 <GlassCard className="p-8 text-center h-full card-3d">
-                  <div className="w-16 h-16 bg-gradient-to-r from-neon-cyan to-neon-violet rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-neon-glow-sm">
-                    <feature.icon className="w-8 h-8 text-cyber-white" />
+                  <div className="w-16 h-16 bg-gradient-to-r from-neon-green to-neon-cyan rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-neon-green-glow">
+                    <feature.icon className="w-8 h-8 text-midnight-900" />
                   </div>
                   <h3 className="text-xl font-semibold text-cyber-white mb-4">
-                    {feature.title}
+                    <span className="text-neon-green">{feature.title}</span>
                   </h3>
                   <p className="text-cyber-gray">
                     {feature.description}
@@ -263,7 +263,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-neon-cyan to-neon-violet">
+      <section className="py-16 bg-gradient-to-r from-neon-green to-neon-cyan">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -280,7 +280,7 @@ export const HomePage: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <GlossyButton 
                 size="lg" 
-                className="bg-midnight-900 text-neon-cyan hover:bg-midnight-800 border-2 border-neon-cyan"
+                className="bg-midnight-900 text-neon-green hover:bg-midnight-800 border-2 border-neon-green shadow-neon-green-glow"
               >
                 Get Started Free
               </GlossyButton>

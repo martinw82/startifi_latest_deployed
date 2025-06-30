@@ -32,8 +32,8 @@ export const Header: React.FC = () => {
               className="flex items-center space-x-2 cursor-pointer"
               whileHover={{ scale: 1.05 }}
             >
-              <Code2 className="w-8 h-8 text-neon-cyan" />
-              <span className="text-xl font-bold bg-gradient-to-r from-neon-cyan to-neon-violet bg-clip-text text-transparent">
+              <Code2 className="w-8 h-8 text-neon-green" />
+              <span className="text-xl font-bold bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent">
                 MVP Library
               </span>
             </motion.div>
@@ -44,7 +44,7 @@ export const Header: React.FC = () => {
             {navItems.map((item) => (
               <Link key={item.label} to={item.href}>
                 <motion.button
-                  className="text-cyber-gray hover:text-neon-cyan transition-colors"
+                  className="text-cyber-gray hover:text-neon-green transition-colors"
                   whileHover={{ scale: 1.1 }}
                 >
                   {item.label}
@@ -57,7 +57,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center space-x-4">
             {/* Search */}
             <motion.button
-              className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-cyan/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+              className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
@@ -69,7 +69,7 @@ export const Header: React.FC = () => {
             {user ? (
               <div className="flex items-center space-x-3">
                 <motion.button
-                  className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-cyan/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors relative"
+                  className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors relative"
                   whileHover={{ scale: 1.1 }}
                 >
                   <Bell className="w-5 h-5 text-cyber-white" />
@@ -93,7 +93,7 @@ export const Header: React.FC = () => {
                   {/* User Settings Link */}
                   <Link to="/settings">
                     <motion.button
-                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-cyan/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
                       whileHover={{ scale: 1.1 }}
                       title="User Settings"
                     >
@@ -103,7 +103,7 @@ export const Header: React.FC = () => {
 
                   <Link to="/dashboard">
                     <motion.button
-                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-cyan/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
                       whileHover={{ scale: 1.1 }}
                     >
                       <User className="w-5 h-5 text-cyber-white" />

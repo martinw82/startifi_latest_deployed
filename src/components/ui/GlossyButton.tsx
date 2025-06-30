@@ -20,9 +20,9 @@ export const GlossyButton: React.FC<GlossyButtonProps> = ({
   const baseClasses = 'relative rounded-full font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-midnight-900';
   
   const variantClasses = {
-    primary: 'bg-gradient-to-r from-neon-cyan to-neon-violet text-cyber-white shadow-neon-glow hover:shadow-neon-glow hover:from-neon-cyan hover:to-neon-violet focus:ring-neon-violet',
+    primary: 'bg-gradient-to-r from-neon-green to-neon-cyan text-cyber-white shadow-neon-green-glow hover:shadow-neon-green-glow hover:from-neon-green_bright hover:to-neon-cyan focus:ring-neon-green',
     secondary: 'bg-gradient-to-r from-cyber-gray-600 to-cyber-gray-700 text-white shadow-lg hover:shadow-xl hover:from-cyber-gray-700 hover:to-cyber-gray-800 focus:ring-cyber-gray-500',
-    outline: 'border-2 border-neon-cyan text-neon-cyan hover:bg-neon-cyan/10 focus:ring-neon-cyan',
+    outline: 'border-2 border-neon-green text-neon-green hover:bg-neon-green/10 hover:text-neon-green_bright focus:ring-neon-green',
   };
 
   const sizeClasses = {

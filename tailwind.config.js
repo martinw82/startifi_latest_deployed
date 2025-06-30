@@ -15,11 +15,13 @@ export default {
         },
         neon: {
           cyan: '#00E5FF',
+          cyan_bright: '#29FFFF',
           violet: '#7C4DFF',
-          green: '#00FFAB',
+          green: '#32FF7E',
+          green_bright: '#5EFFA1',
         },
         cyber: {
-          white: '#F2F5FF',
+          white: '#FFFFFF',
           gray: '#8B9DC3',
           blue: '#4A5568',
         },
@@ -89,6 +91,8 @@ export default {
         'glass-inset': 'inset 0 2px 4px 0 rgba(255, 255, 255, 0.06)',
         'neon-glow': '0 0 10px rgba(0, 229, 255, 0.5), 0 0 20px rgba(0, 229, 255, 0.3)',
         'neon-glow-sm': '0 0 5px rgba(0, 229, 255, 0.5), 0 0 10px rgba(0, 229, 255, 0.3)',
+        'neon-green-glow': '0 0 10px rgba(50, 255, 126, 0.5), 0 0 20px rgba(50, 255, 126, 0.3)',
+        'neon-green-glow-sm': '0 0 5px rgba(50, 255, 126, 0.5), 0 0 10px rgba(50, 255, 126, 0.3)',
         'neon-violet-glow': '0 0 10px rgba(124, 77, 255, 0.5), 0 0 20px rgba(124, 77, 255, 0.3)',
       },
       backgroundImage: {
