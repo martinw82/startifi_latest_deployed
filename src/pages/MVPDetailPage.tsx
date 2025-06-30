@@ -10,6 +10,9 @@ import MVPReviews from '../components/mvp/MVPReviews';
 import SubmitReviewForm from '../components/mvp/SubmitReviewForm';
 import { GlossyButton } from '../components/ui/GlossyButton';
 
+import { MVPUploadService } from '../lib/mvpUpload';
+
+
 export const MVPDetailPage: React.FC = () => {
   const { mvpId } = useParams<{ mvpId: string }>();
   const [mvp, setMvp] = useState<MVP | null>(null);
