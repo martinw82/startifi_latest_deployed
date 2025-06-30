@@ -197,7 +197,7 @@ export class APIService {
   static async downloadMVP(mvpId: string, userId: string): Promise<{ success: boolean; message: string; filePath?: string }> {
     try {
       // 1. Fetch user profile to check download quota
-      const { data: userProfile, error: profileError } = await supabase
+      const { data: userProfile, error: profileError } = await supabase 
         .from('profiles')
         .select('downloads_remaining')
         .eq('id', userId)
@@ -227,7 +227,7 @@ export class APIService {
       // 3. Log the download
       const currentMonthYear = new Date().toISOString().substring(0, 7); // YYYY-MM format
       const { error: insertDownloadError } = await supabase
-        .from('downloads')
+        .from('downloads') 
         .insert({
           user_id: userId,
           mvp_id: mvpId,
@@ -244,7 +244,7 @@ export class APIService {
       // 4. Get MVP details to construct file path
       const mvp = await APIService.getMVPById(mvpId);
       if (!mvp) {
-        return { success: false, message: 'MVP not found.' };
+        return { success: false, message: 'MVP not found.' }; 
       }
 
       // Determine the correct storage path for the MVP file.
@@ -311,34 +311,50 @@ export class APIService {
         return { success: false, message: "Rating must be between 1 and 5." };
       }
 
-      // Simulate database insert
-      console.log('Simulating review submission:', reviewData);
+      // Check if user has downloaded this MVP (verified buyer)
+      const { data: downloadData, error: downloadError } = await supabase
+        .from('downloads')
+        .select('id')
+        .eq('user_id', reviewData.userId)
+        .eq('mvp_id', reviewData.mvpId)
+        .maybeSingle();
+      
+      if (downloadError) {
+        console.error('Error checking download history:', downloadError);
+        // Continue anyway, but with is_verified_buyer=false
+      }
+      
+      const isVerifiedBuyer = !!downloadData;
+      
+      // Insert the review into Supabase
+      const { data, error } = await supabase.from('reviews').insert([
+        {
+          mvp_id: reviewData.mvpId,
+          user_id: reviewData.userId,
+          rating: reviewData.rating,
+          review_text: reviewData.comment || null, // Handle empty comments
+          is_verified_buyer: isVerifiedBuyer
+        }
+      ]).select(`
+        *,
+        user:profiles(email)
+      `).single();
 
-      const mockReview: Review = {
-        id: `mock-review-${Date.now()}`,
-        mvp_id: reviewData.mvpId,
-        user_id: reviewData.userId,
-        rating: reviewData.rating,
-        review_text: reviewData.comment,
-        created_at: new Date().toISOString(),
-        is_verified_buyer: true, // Simulate verified buyer
-        user: { email: 'mockuser@example.com' } // Simulate user data
+      if (error) {
+        // Check for unique constraint violation (user already reviewed this MVP)
+        if (error.code === '23505') {
+          return { success: false, message: 'You have already submitted a review for this MVP. You can update your existing review instead.' };
+        }
+        throw error;
+      }
+
+      // Format the review with user data
+      const review: Review = {
+        ...data,
+        user: data.user || { email: 'Anonymous' }
       };
 
-      // In a real app, insert into Supabase reviews table:
-      // const { data, error } = await supabase.from('reviews').insert([
-      //   {
-      //     mvp_id: reviewData.mvpId,
-      //     user_id: reviewData.userId,
-      //     rating: reviewData.rating,
-      //     review_text: reviewData.comment,
-      //     is_verified_buyer: true // Determine based on actual purchase history
-      //   }
-      // ]).select().single();
-
-      // if (error) throw error;
-
-      return { success: true, message: "Review submitted successfully!", review: mockReview };
+      return { success: true, message: "Review submitted successfully!", review };
     } catch (error: any) {
       console.error('Error in submitReview:', error);
       return { success: false, message: error.message || 'Failed to submit review.' };
