@@ -6,6 +6,8 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { DeploymentService } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
+
 
 export const BuyerGitHubCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
