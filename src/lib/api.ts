@@ -987,7 +987,7 @@ export class DeploymentService {
           body: {
             user_id: userId,
             mvp_id: mvpId,
-            deployment_id: deployment.id,
+            deployment_id: deploymentId,
             repo_name: repoName,
            },
         }
