@@ -1525,3 +1525,122 @@ export class DeploymentService {
     }
   }
 }
+export class NotificationService {
+  static async createNotification(notificationData: {
+    user_id: string;
+    type: string;
+    message: string;
+    link?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('notifications').insert([
+        {
+          user_id: notificationData.user_id,
+          type: notificationData.type,
+          message: notificationData.message,
+          link: notificationData.link,
+          read: false, // New notifications are unread by default
+        },
+      ]);
+
+      if (error) {
+        console.error('Error creating notification:', error);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (error: any) {
+      console.error('Unexpected error creating notification:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getNotifications(
+    userId: string,
+    unreadOnly?: boolean
+  ): Promise<Notification[]> {
+    try {
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (unreadOnly !== undefined) {
+        query = query.eq('read', !unreadOnly); // If unreadOnly is true, fetch read=false
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        throw error;
+      }
+      return data || [];
+    } catch (error: any) {
+      console.error('Unexpected error fetching notifications:', error);
+      throw error;
+    }
+  }
+
+  static async markNotificationAsRead(
+    notificationId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true, seen_at: new Date().toISOString() })
+        .eq('id', notificationId);
+
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (error: any) {
+      console.error('Unexpected error marking notification as read:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async markAllNotificationsAsRead(
+    userId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true, seen_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('read', false); // Only mark unread notifications
+
+      if (error) {
+        console.error('Error marking all notifications as read:', error);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (error: any) {
+      console.error('Unexpected error marking all notifications as read:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getUnreadNotificationCount(
+    userId: string
+  ): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('read', false);
+
+      if (error) {
+        console.error('Error fetching unread notification count:', error);
+        throw error;
+      }
+      return count || 0;
+    } catch (error: any) {
+      console.error('Unexpected error fetching unread notification count:', error);
+      throw error;
+    }
+  }
+}
