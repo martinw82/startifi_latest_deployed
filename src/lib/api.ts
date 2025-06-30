@@ -1,7 +1,7 @@
 // src/lib/api.ts
 import { supabase } from './supabase';
-import type { MVP, Review, Subscription, Download } from '../types';
-import { MVPUploadService } from './mvpUpload'; // This import is already present
+import type { MVP, Review, Subscription, Download, RefundRequest, Dispute } from '../types';
+import { MVPUploadService } from './mvpUpload';
 import { v4 as uuidv4 } from 'uuid';
 
 export class APIService {
@@ -10,19 +10,19 @@ export class APIService {
     category?: string;
     techStack?: string[];
     search?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    licensingTerms?: string;
     page?: number;
     limit?: number;
     sortBy?: 'download_count' | 'average_rating' | 'published_at';
+    minPrice?: number;
+    maxPrice?: number;
+    licensingTerms?: string;
   }) {
     try {
       let query = supabase
         .from('mvps')
         .select(`
           *,
-          profiles!mvps_seller_id_fkey(id, email)
+          profiles!mvps_seller_id_fkey(id, email, username)
         `)
         .eq('status', 'approved');
 
@@ -34,7 +34,10 @@ export class APIService {
         query = query.overlaps('tech_stack', filters.techStack);
       }
 
-      // Price filters
+      if (filters?.search) {
+        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,tagline.ilike.%${filters.search}%`);
+      }
+
       if (filters?.minPrice !== undefined) {
         query = query.gte('price', filters.minPrice);
       }
@@ -43,21 +46,8 @@ export class APIService {
         query = query.lte('price', filters.maxPrice);
       }
 
-      // Licensing terms filter
-      if (filters?.licensingTerms) {
+      if (filters?.licensingTerms && filters.licensingTerms !== 'all') {
         query = query.eq('licensing_terms', filters.licensingTerms);
-      }
-
-      if (filters?.search) {
-        // Enhanced search to include more fields
-        query = query.or(
-          `title.ilike.%${filters.search}%,` +
-          `description.ilike.%${filters.search}%,` +
-          `tagline.ilike.%${filters.search}%,` +
-          `changelog.ilike.%${filters.search}%,` +
-          `features.cs.{${filters.search}},` +
-          `tech_stack.cs.{${filters.search}}`
-        );
       }
 
       if (filters?.sortBy) {
@@ -124,7 +114,8 @@ export class APIService {
           published_at: '2024-01-15T12:00:00Z',
           seller: {
             id: 'demo-seller',
-            email: 'demo@mvplibrary.dev'
+            email: 'demo@mvplibrary.dev',
+            username: 'demoseller'
           },
           access_tier: 'subscription' // Added access_tier
         });
@@ -147,7 +138,7 @@ export class APIService {
         .from('mvps')
         .select(`
           *,
-          profiles!mvps_seller_id_fkey(id, email)
+          profiles!mvps_seller_id_fkey(id, email, username)
         `)
         .eq('id', mvpId)
         .single();
@@ -203,7 +194,8 @@ export class APIService {
           published_at: '2024-01-15T12:00:00Z',
           seller: {
             id: 'demo-seller',
-            email: 'demo@mvplibrary.dev'
+            email: 'demo@mvplibrary.dev',
+            username: 'demoseller'
           },
           access_tier: 'subscription' // Added access_tier
         };
@@ -222,7 +214,7 @@ export class APIService {
   static async downloadMVP(mvpId: string, userId: string): Promise<{ success: boolean; message: string; filePath?: string }> {
     try {
       // 1. Fetch user profile to check download quota
-      const { data: userProfile, error: profileError } = await supabase 
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('downloads_remaining')
         .eq('id', userId)
@@ -252,7 +244,7 @@ export class APIService {
       // 3. Log the download
       const currentMonthYear = new Date().toISOString().substring(0, 7); // YYYY-MM format
       const { error: insertDownloadError } = await supabase
-        .from('downloads') 
+        .from('downloads')
         .insert({
           user_id: userId,
           mvp_id: mvpId,
@@ -269,7 +261,7 @@ export class APIService {
       // 4. Get MVP details to construct file path
       const mvp = await APIService.getMVPById(mvpId);
       if (!mvp) {
-        return { success: false, message: 'MVP not found.' }; 
+        return { success: false, message: 'MVP not found.' };
       }
 
       // Determine the correct storage path for the MVP file.
@@ -336,50 +328,23 @@ export class APIService {
         return { success: false, message: "Rating must be between 1 and 5." };
       }
 
-      // Check if user has downloaded this MVP (verified buyer)
-      const { data: downloadData, error: downloadError } = await supabase
-        .from('downloads')
-        .select('id')
-        .eq('user_id', reviewData.userId)
-        .eq('mvp_id', reviewData.mvpId)
-        .maybeSingle();
-      
-      if (downloadError) {
-        console.error('Error checking download history:', downloadError);
-        // Continue anyway, but with is_verified_buyer=false
-      }
-      
-      const isVerifiedBuyer = !!downloadData;
-      
-      // Insert the review into Supabase
+      // In a real app, insert into Supabase reviews table:
       const { data, error } = await supabase.from('reviews').insert([
         {
           mvp_id: reviewData.mvpId,
           user_id: reviewData.userId,
           rating: reviewData.rating,
-          review_text: reviewData.comment || null, // Handle empty comments
-          is_verified_buyer: isVerifiedBuyer
+          review_text: reviewData.comment,
+          is_verified_buyer: true // Determine based on actual purchase history
         }
-      ]).select(`
-        *,
-        user:profiles(email)
-      `).single();
+      ]).select().single();
 
-      if (error) {
-        // Check for unique constraint violation (user already reviewed this MVP)
-        if (error.code === '23505') {
-          return { success: false, message: 'You have already submitted a review for this MVP. You can update your existing review instead.' };
-        }
-        throw error;
-      }
+      if (error) throw error;
 
-      // Format the review with user data
-      const review: Review = {
-        ...data,
-        user: data.user || { email: 'Anonymous' }
-      };
+      // Update MVP average rating
+      await supabase.rpc('update_mvp_rating', { mvp_id_param: reviewData.mvpId });
 
-      return { success: true, message: "Review submitted successfully!", review };
+      return { success: true, message: "Review submitted successfully!", review: data };
     } catch (error: any) {
       console.error('Error in submitReview:', error);
       return { success: false, message: error.message || 'Failed to submit review.' };
@@ -497,795 +462,34 @@ export class APIService {
       throw error;
     }
   }
-}
 
-// Notification Service for in-app notifications
-export class NotificationService {
-  static async createNotification(notificationData: {
-    user_id: string;
-    type: string;
-    message: string;
-    link?: string;
-  }): Promise<{ success: boolean; notification?: any; error?: string }> {
+  static async getProfileByUsername(username: string) {
     try {
       const { data, error } = await supabase
-        .from('notifications')
-        .insert([{
-          user_id: notificationData.user_id,
-          type: notificationData.type,
-          message: notificationData.message,
-          link: notificationData.link,
-          read: false
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating notification:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, notification: data };
-    } catch (error: any) {
-      console.error('Error in createNotification:', error);
-      return { success: false, error: error.message || 'Failed to create notification' };
-    }
-  }
-
-  static async getNotifications(userId: string, read?: boolean): Promise<any[]> {
-    try {
-      let query = supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (read !== undefined) {
-        query = query.eq('read', read);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getNotifications:', error);
-      return [];
-    }
-  }
-
-  static async getUnreadNotificationCount(userId: string): Promise<number> {
-    try {
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('read', false);
-
-      if (error) {
-        console.error('Error counting unread notifications:', error);
-        return 0;
-      }
-
-      return count || 0;
-    } catch (error: any) {
-      console.error('Error in getUnreadNotificationCount:', error);
-      return 0;
-    }
-  }
-
-  static async markNotificationAsRead(notificationId: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ 
-          read: true, 
-          seen_at: new Date().toISOString() 
-        })
-        .eq('id', notificationId);
-
-      if (error) {
-        console.error('Error marking notification as read:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error in markNotificationAsRead:', error);
-      return { success: false, error: error.message || 'Failed to mark notification as read' };
-    }
-  }
-
-  static async markAllNotificationsAsRead(userId: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ 
-          read: true, 
-          seen_at: new Date().toISOString() 
-        })
-        .eq('user_id', userId)
-        .eq('read', false);
-
-      if (error) {
-        console.error('Error marking all notifications as read:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error in markAllNotificationsAsRead:', error);
-      return { success: false, error: error.message || 'Failed to mark all notifications as read' };
-    }
-  }
-}
-
-// Refund Request Service
-export class RefundService {
-  static async submitRefundRequest(data: { 
-    userId: string; 
-    subscriptionId: string; 
-    reason: string; 
-    amountRequested: number 
-  }): Promise<{ success: boolean; message: string; refundRequest?: any }> {
-    try {
-      // Validate the data
-      if (!data.userId) throw new Error('User ID is required');
-      if (!data.subscriptionId) throw new Error('Subscription ID is required');
-      if (!data.reason) throw new Error('Reason is required');
-      if (!data.amountRequested || data.amountRequested <= 0) {
-        throw new Error('Amount requested must be greater than zero');
-      }
-
-      // Insert the refund request
-      const { data: refundRequest, error } = await supabase
-        .from('refund_requests')
-        .insert([{
-          user_id: data.userId,
-          subscription_id: data.subscriptionId,
-          reason: data.reason,
-          amount_requested: data.amountRequested,
-          status: 'pending'
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error submitting refund request:', error);
-        return { success: false, message: error.message };
-      }
-
-      // Notify the admin team of the new refund request
-      try {
-        // Get all admin users
-        const { data: admins } = await supabase
-          .from('profiles')
-          .select('id')
-          .in('role', ['admin', 'both']);
-
-        // Create notification for each admin
-        if (admins && admins.length > 0) {
-          const notifications = admins.map(admin => ({
-            user_id: admin.id,
-            type: 'refund_request',
-            message: `New refund request submitted for $${data.amountRequested.toFixed(2)}`,
-            link: '/admin?tab=refunds',
-            read: false
-          }));
-
-          await supabase.from('notifications').insert(notifications);
-        }
-      } catch (notificationError) {
-        console.warn('Failed to notify admins of refund request:', notificationError);
-        // Continue despite notification error
-      }
-
-      return { 
-        success: true, 
-        message: 'Refund request submitted successfully', 
-        refundRequest 
-      };
-    } catch (error: any) {
-      console.error('Error in submitRefundRequest:', error);
-      return { success: false, message: error.message || 'Failed to submit refund request' };
-    }
-  }
-
-  static async getUserRefundRequests(userId: string): Promise<RefundRequest[]> {
-    try {
-      const { data, error } = await supabase
-        .from('refund_requests')
-        .select(`
-          *,
-          subscription:subscriptions(plan_type, stripe_subscription_id)
-        `)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching user refund requests:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getUserRefundRequests:', error);
-      return [];
-    }
-  }
-
-  static async getRefundRequests(status?: 'pending' | 'approved' | 'rejected' | 'processed'): Promise<RefundRequest[]> {
-    try {
-      let query = supabase
-        .from('refund_requests')
-        .select(`
-          *,
-          user:profiles!refund_requests_user_id_fkey(email, username),
-          subscription:subscriptions(plan_type, stripe_subscription_id)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (status) {
-        query = query.eq('status', status);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching refund requests:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getRefundRequests:', error);
-      return [];
-    }
-  }
-
-  static async updateRefundRequestStatus(
-    requestId: string, 
-    status: 'approved' | 'rejected' | 'processed', 
-    processedBy: string, 
-    stripeRefundId?: string
-  ): Promise<{ success: boolean; message: string }> {
-    try {
-      // Get the current refund request to check its status
-      const { data: currentRequest, error: fetchError } = await supabase
-        .from('refund_requests')
-        .select('status, user_id, amount_requested')
-        .eq('id', requestId)
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching current refund request:', fetchError);
-        return { success: false, message: 'Refund request not found' };
-      }
-
-      // Only allow updates if current status is 'pending' or if changing from 'approved' to 'processed'
-      if (currentRequest.status !== 'pending' && 
-          !(currentRequest.status === 'approved' && status === 'processed')) {
-        return { success: false, message: `Cannot update request with status '${currentRequest.status}' to '${status}'` };
-      }
-
-      // Prepare the update data
-      const updateData: Record<string, any> = {
-        status: status,
-        processed_by: processedBy
-      };
-
-      // Add processed_at and stripe_refund_id if applicable
-      if (status === 'approved' || status === 'processed') {
-        updateData.processed_at = new Date().toISOString();
-      }
-
-      if (status === 'processed' && stripeRefundId) {
-        updateData.stripe_refund_id = stripeRefundId;
-      }
-
-      // Update the refund request
-      const { error } = await supabase
-        .from('refund_requests')
-        .update(updateData)
-        .eq('id', requestId);
-
-      if (error) {
-        console.error('Error updating refund request:', error);
-        return { success: false, message: error.message };
-      }
-
-      // Notify the user about the status change
-      try {
-        let notificationMessage = '';
-        if (status === 'approved') {
-          notificationMessage = 'Your refund request has been approved and will be processed soon.';
-        } else if (status === 'rejected') {
-          notificationMessage = 'Your refund request has been rejected.';
-        } else if (status === 'processed') {
-          notificationMessage = `Your refund of $${currentRequest.amount_requested.toFixed(2)} has been processed.`;
-        }
-
-        if (notificationMessage) {
-          await NotificationService.createNotification({
-            user_id: currentRequest.user_id,
-            type: `refund_${status}`,
-            message: notificationMessage
-          });
-        }
-      } catch (notificationError) {
-        console.warn('Failed to send notification about refund status change:', notificationError);
-        // Continue despite notification error
-      }
-
-      return { success: true, message: `Refund request marked as ${status}` };
-    } catch (error: any) {
-      console.error('Error in updateRefundRequestStatus:', error);
-      return { success: false, message: error.message || 'Failed to update refund request status' };
-    }
-  }
-
-  static async processRefund(
-    requestId: string, 
-    adminId: string
-  ): Promise<{ success: boolean; message: string; refundId?: string }> {
-    try {
-      // Get the refund request details
-      const { data: request, error: fetchError } = await supabase
-        .from('refund_requests')
+        .from('profiles')
         .select(`
           id,
-          user_id,
-          subscription_id,
-          amount_requested,
-          status,
-          subscription:subscriptions(stripe_subscription_id)
+          username,
+          display_name,
+          bio,
+          profile_picture_url,
+          website_url,
+          social_links,
+          github_username,
+          created_at,
+          is_seller_approved
         `)
-        .eq('id', requestId)
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching refund request:', fetchError);
-        return { success: false, message: 'Refund request not found' };
-      }
-
-      // Only allow processing if status is 'approved'
-      if (request.status !== 'approved') {
-        return { success: false, message: `Cannot process refund with status '${request.status}', must be 'approved'` };
-      }
-
-      // Check if we have the Stripe subscription ID
-      if (!request.subscription?.stripe_subscription_id) {
-        return { success: false, message: 'No Stripe subscription ID found for this refund' };
-      }
-
-      // In a real implementation, here we would:
-      // 1. Call Stripe API to process the actual refund
-      // 2. Get the refund ID from Stripe response
-      // 3. Update the refund request with status 'processed' and the Stripe refund ID
-
-      // For now, we'll simulate this with a mock refund ID
-      const mockRefundId = `re_mock_${Date.now()}`;
-
-      // Update the refund request status to 'processed'
-      const result = await this.updateRefundRequestStatus(
-        requestId,
-        'processed',
-        adminId,
-        mockRefundId
-      );
-
-      if (!result.success) {
-        return result;
-      }
-
-      return { 
-        success: true, 
-        message: 'Refund processed successfully', 
-        refundId: mockRefundId 
-      };
-    } catch (error: any) {
-      console.error('Error in processRefund:', error);
-      return { success: false, message: error.message || 'Failed to process refund' };
-    }
-  }
-}
-
-// Dispute Service
-export class DisputeService {
-  static async submitDispute(data: { 
-    buyerId: string; 
-    sellerId: string; 
-    mvpId: string; 
-    reason: string; 
-    details: string 
-  }): Promise<{ success: boolean; message: string; dispute?: any }> {
-    try {
-      // Validate the data
-      if (!data.buyerId) throw new Error('Buyer ID is required');
-      if (!data.sellerId) throw new Error('Seller ID is required');
-      if (!data.mvpId) throw new Error('MVP ID is required');
-      if (!data.reason) throw new Error('Reason is required');
-      if (!data.details) throw new Error('Details are required');
-
-      // Insert the dispute
-      const { data: dispute, error } = await supabase
-        .from('disputes')
-        .insert([{
-          buyer_id: data.buyerId,
-          seller_id: data.sellerId,
-          mvp_id: data.mvpId,
-          reason: data.reason,
-          details: data.details,
-          status: 'open'
-        }])
-        .select()
+        .eq('username', username)
         .single();
 
       if (error) {
-        console.error('Error submitting dispute:', error);
-        return { success: false, message: error.message };
+        console.error('Error fetching profile by username:', error);
+        throw error;
       }
-
-      // Notify both the seller and admins about the new dispute
-      try {
-        // Notify seller
-        await NotificationService.createNotification({
-          user_id: data.sellerId,
-          type: 'new_dispute',
-          message: `A buyer has opened a dispute regarding one of your MVPs`,
-          link: `/disputes/${dispute.id}`
-        });
-
-        // Get all admin users
-        const { data: admins } = await supabase
-          .from('profiles')
-          .select('id')
-          .in('role', ['admin', 'both']);
-
-        // Create notification for each admin
-        if (admins && admins.length > 0) {
-          const notifications = admins.map(admin => ({
-            user_id: admin.id,
-            type: 'new_dispute',
-            message: `New dispute opened between buyer and seller`,
-            link: '/admin?tab=disputes',
-            read: false
-          }));
-
-          await supabase.from('notifications').insert(notifications);
-        }
-      } catch (notificationError) {
-        console.warn('Failed to send notifications about new dispute:', notificationError);
-        // Continue despite notification error
-      }
-
-      return { 
-        success: true, 
-        message: 'Dispute submitted successfully', 
-        dispute 
-      };
-    } catch (error: any) {
-      console.error('Error in submitDispute:', error);
-      return { success: false, message: error.message || 'Failed to submit dispute' };
-    }
-  }
-
-  static async getUserDisputes(userId: string): Promise<Dispute[]> {
-    try {
-      const { data, error } = await supabase
-        .from('disputes')
-        .select(`
-          *,
-          buyer:profiles!disputes_buyer_id_fkey(email, username),
-          seller:profiles!disputes_seller_id_fkey(email, username),
-          mvp:mvps(title, slug)
-        `)
-        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-        .order('opened_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching user disputes:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getUserDisputes:', error);
-      return [];
-    }
-  }
-
-  static async getDisputes(status?: 'open' | 'in_review' | 'resolved_buyer' | 'resolved_seller' | 'closed_no_action'): Promise<Dispute[]> {
-    try {
-      let query = supabase
-        .from('disputes')
-        .select(`
-          *,
-          buyer:profiles!disputes_buyer_id_fkey(email, username),
-          seller:profiles!disputes_seller_id_fkey(email, username),
-          mvp:mvps(title, slug)
-        `)
-        .order('opened_at', { ascending: false });
-
-      if (status) {
-        query = query.eq('status', status);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching disputes:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getDisputes:', error);
-      return [];
-    }
-  }
-
-  static async getDisputeById(disputeId: string): Promise<Dispute | null> {
-    try {
-      const { data, error } = await supabase
-        .from('disputes')
-        .select(`
-          *,
-          buyer:profiles!disputes_buyer_id_fkey(email, username),
-          seller:profiles!disputes_seller_id_fkey(email, username),
-          mvp:mvps(title, slug)
-        `)
-        .eq('id', disputeId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching dispute:', error);
-        return null;
-      }
-
       return data;
-    } catch (error: any) {
-      console.error('Error in getDisputeById:', error);
-      return null;
-    }
-  }
-
-  static async updateDisputeStatus(
-    disputeId: string, 
-    status: 'in_review' | 'resolved_buyer' | 'resolved_seller' | 'closed_no_action', 
-    resolvedBy: string, 
-    resolutionDetails?: string
-  ): Promise<{ success: boolean; message: string }> {
-    try {
-      // Get the current dispute to check its status and get user IDs
-      const { data: currentDispute, error: fetchError } = await supabase
-        .from('disputes')
-        .select('status, buyer_id, seller_id, mvp_id')
-        .eq('id', disputeId)
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching current dispute:', fetchError);
-        return { success: false, message: 'Dispute not found' };
-      }
-
-      // Only allow updates if current status is 'open' or 'in_review'
-      if (currentDispute.status !== 'open' && currentDispute.status !== 'in_review') {
-        return { success: false, message: `Cannot update dispute with status '${currentDispute.status}'` };
-      }
-
-      // Prepare the update data
-      const updateData: Record<string, any> = {
-        status: status,
-        resolved_by: resolvedBy
-      };
-
-      // Add resolution details if provided
-      if (resolutionDetails) {
-        updateData.resolution_details = resolutionDetails;
-      }
-
-      // Add resolved_at timestamp if the dispute is being resolved
-      if (status !== 'in_review') {
-        updateData.resolved_at = new Date().toISOString();
-      }
-
-      // Update the dispute
-      const { error } = await supabase
-        .from('disputes')
-        .update(updateData)
-        .eq('id', disputeId);
-
-      if (error) {
-        console.error('Error updating dispute:', error);
-        return { success: false, message: error.message };
-      }
-
-      // Notify both buyer and seller about the status change
-      try {
-        let buyerMessage = '';
-        let sellerMessage = '';
-
-        if (status === 'in_review') {
-          buyerMessage = 'Your dispute is now under review by our team.';
-          sellerMessage = 'A dispute involving your MVP is now under review by our team.';
-        } else if (status === 'resolved_buyer') {
-          buyerMessage = 'Your dispute has been resolved in your favor.';
-          sellerMessage = 'A dispute has been resolved in favor of the buyer.';
-        } else if (status === 'resolved_seller') {
-          buyerMessage = 'Your dispute has been resolved in favor of the seller.';
-          sellerMessage = 'A dispute has been resolved in your favor.';
-        } else if (status === 'closed_no_action') {
-          buyerMessage = 'Your dispute has been closed without further action.';
-          sellerMessage = 'A dispute involving your MVP has been closed without further action.';
-        }
-
-        // Notify buyer
-        if (buyerMessage) {
-          await NotificationService.createNotification({
-            user_id: currentDispute.buyer_id,
-            type: `dispute_${status}`,
-            message: buyerMessage,
-            link: `/disputes/${disputeId}`
-          });
-        }
-
-        // Notify seller
-        if (sellerMessage) {
-          await NotificationService.createNotification({
-            user_id: currentDispute.seller_id,
-            type: `dispute_${status}`,
-            message: sellerMessage,
-            link: `/disputes/${disputeId}`
-          });
-        }
-      } catch (notificationError) {
-        console.warn('Failed to send notifications about dispute status change:', notificationError);
-        // Continue despite notification error
-      }
-
-      return { success: true, message: `Dispute status updated to ${status}` };
-    } catch (error: any) {
-      console.error('Error in updateDisputeStatus:', error);
-      return { success: false, message: error.message || 'Failed to update dispute status' };
-    }
-  }
-}
-
-/**
- * Service for handling notifications
- */
-  /**
-   * Get notifications for a user
-   * @param userId The user ID
-   * @param readStatus Optional filter by read status
-   */
-  static async getNotifications(userId: string, readStatus?: boolean) {
-    try {
-      let query = supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      // Apply read status filter if provided
-      if (readStatus !== undefined) {
-        query = query.eq('read', readStatus);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getNotifications:', error);
+    } catch (error) {
+      console.error('Error in getProfileByUsername:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Mark a notification as read
-   * @param notificationId The notification ID
-   */
-  static async markNotificationAsRead(notificationId: string) {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('id', notificationId);
-
-      if (error) {
-        console.error('Error marking notification as read:', error);
-        throw error;
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error in markNotificationAsRead:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Mark all notifications for a user as read
-   * @param userId The user ID
-   */
-  static async markAllNotificationsAsRead(userId: string) {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('user_id', userId)
-        .eq('read', false);
-
-      if (error) {
-        console.error('Error marking all notifications as read:', error);
-        throw error;
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error in markAllNotificationsAsRead:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Get the count of unread notifications for a user
-   * @param userId The user ID
-   */
-  static async getUnreadNotificationCount(userId: string) {
-    try {
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('read', false);
-
-      if (error) {
-        console.error('Error counting unread notifications:', error);
-        throw error;
-      }
-
-      return count || 0;
-    } catch (error: any) {
-      console.error('Error in getUnreadNotificationCount:', error);
-      return 0;
-    }
-  }
-
-  /**
-   * Create a new notification
-   * @param notification The notification data
-   */
-  static async createNotification(notification: { 
-    user_id: string; 
-    type: string; 
-    message: string; 
-    link?: string 
-  }) {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert([notification]);
-
-      if (error) {
-        console.error('Error creating notification:', error);
-        throw error;
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error in createNotification:', error);
-      return { success: false, error: error.message };
     }
   }
 }
@@ -1386,7 +590,6 @@ export class GitHubService {
           github_repo_name: null,
           last_synced_github_commit_sha: null,
           github_webhook_secret: null, // Clear the webhook secret
-          // github_app_installation_id: null, // This column is now in profiles, so remove this line
           updated_at: new Date().toISOString()
         })
         .eq('id', mvpId);
@@ -1631,250 +834,6 @@ export class GitHubService {
     } catch (error: any) {
       console.error('Error in initiateGitHubOAuth:', error);
       return { success: false, message: error.message || 'An unexpected error occurred.' };
-    }
-  }
-
-  /**
-   * Admin-specific methods
-   */
-  static async getAllProfilesForAdmin(
-    filters?: { role?: string; sellerApproval?: boolean; search?: string }
-  ) {
-    try {
-      if (!await this.isAdmin()) {
-        throw new Error('Unauthorized access');
-      }
-
-      let query = supabase
-        .from('profiles')
-        .select(`
-          id,
-          email,
-          username,
-          display_name,
-          role,
-          is_seller_approved,
-          stripe_customer_id,
-          stripe_account_id,
-          downloads_remaining,
-          last_quota_reset_at,
-          created_at
-        `)
-        .order('created_at', { ascending: false });
-
-      // Apply filters if provided
-      if (filters?.role && filters.role !== 'all') {
-        query = query.eq('role', filters.role);
-      }
-
-      if (filters?.sellerApproval !== undefined) {
-        query = query.eq('is_seller_approved', filters.sellerApproval);
-      }
-
-      if (filters?.search) {
-        query = query.or(`email.ilike.%${filters.search}%,username.ilike.%${filters.search}%`);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching user profiles:', error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getAllProfilesForAdmin:', error);
-      throw error;
-    }
-  }
-
-  static async updateUserProfileByAdmin(
-    userId: string,
-    updates: { role?: string; is_seller_approved?: boolean }
-  ) {
-    try {
-      if (!await this.isAdmin()) {
-        throw new Error('Unauthorized access');
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      if (error) {
-        console.error('Error updating user profile:', error);
-        throw error;
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error in updateUserProfileByAdmin:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  static async getAdminAnalytics(period?: 'day' | 'week' | 'month' | 'year') {
-    try {
-      if (!await this.isAdmin()) {
-        throw new Error('Unauthorized access');
-      }
-
-      // Get total counts for key metrics
-      const [
-        { count: totalUsers },
-        { count: totalSellers },
-        { count: totalMVPs },
-        { count: totalDownloads },
-        { data: revenueData },
-        { data: mvpRatings },
-        { data: downloadTrend },
-        { data: userGrowth }
-      ] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('profiles').select('*', { count: 'exact', head: true })
-          .or('role.eq.seller,role.eq.both')
-          .eq('is_seller_approved', true),
-        supabase.from('mvps').select('*', { count: 'exact', head: true })
-          .eq('status', 'approved'),
-        supabase.from('downloads').select('*', { count: 'exact', head: true }),
-        supabase.from('stripe_orders').select('amount_total, created_at')
-          .order('created_at', { ascending: false }),
-        supabase.from('mvps').select('average_rating')
-          .eq('status', 'approved'),
-        // Get download trends (simplified - this would be more complex in production)
-        supabase.from('downloads')
-          .select('month_year, count(*)')
-          .group('month_year')
-          .order('month_year', { ascending: false })
-          .limit(12),
-        // Get user growth over time (simplified)
-        supabase.from('profiles')
-          .select('created_at')
-          .order('created_at', { ascending: false })
-      ]);
-
-      // Calculate total revenue
-      const totalRevenue = revenueData?.reduce((sum, order) => 
-        sum + (order.amount_total || 0), 0) || 0;
-      
-      // Calculate average rating
-      const allRatings = mvpRatings?.filter(mvp => mvp.average_rating > 0)
-        .map(mvp => mvp.average_rating) || [];
-      const averageRating = allRatings.length > 0
-        ? allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length
-        : 0;
-
-      // Prepare trend data
-      const downloadsByMonth = downloadTrend?.reduce((acc, item) => {
-        acc[item.month_year] = item.count;
-        return acc;
-      }, {} as Record<string, number>) || {};
-
-      // Group users by month for growth chart
-      const usersByMonth: Record<string, number> = {};
-      userGrowth?.forEach(user => {
-        const monthYear = new Date(user.created_at).toISOString().substring(0, 7); // YYYY-MM
-        usersByMonth[monthYear] = (usersByMonth[monthYear] || 0) + 1;
-      });
-
-      return {
-        counts: {
-          totalUsers,
-          totalSellers,
-          totalMVPs,
-          totalDownloads,
-          totalRevenue: totalRevenue / 100, // Convert from cents to dollars
-          averageRating
-        },
-        trends: {
-          downloads: downloadsByMonth,
-          users: usersByMonth,
-          // More trends could be added here
-        }
-      };
-    } catch (error: any) {
-      console.error('Error in getAdminAnalytics:', error);
-      throw error;
-    }
-  }
-
-  static async processPayout(payoutId: string) {
-    try {
-      if (!await this.isAdmin()) {
-        throw new Error('Unauthorized access');
-      }
-
-      // Call the process-payout Edge Function
-      const { data, error } = await supabase.functions.invoke('process-payout', {
-        body: { payoutId }
-      });
-
-      if (error) {
-        console.error('Error calling process-payout function:', error);
-        return { success: false, message: error.message || 'Failed to process payout' };
-      }
-
-      if (data?.success) {
-        return { success: true, message: data.message || 'Payout processing initiated' };
-      } else {
-        return { success: false, message: data?.message || 'Failed to process payout' };
-      }
-    } catch (error: any) {
-      console.error('Error in processPayout:', error);
-      return { success: false, message: error.message || 'An unexpected error occurred' };
-    }
-  }
-
-  static async getPendingPayouts() {
-    try {
-      if (!await this.isAdmin()) {
-        throw new Error('Unauthorized access');
-      }
-
-      const { data, error } = await supabase
-        .from('payouts')
-        .select(`
-          *,
-          profiles!payouts_seller_id_fkey(id, email, username, display_name)
-        `)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching pending payouts:', error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getPendingPayouts:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Helper method to check if current user is an admin
-   */
-  private static async isAdmin(): Promise<boolean> {
-    try {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) return false;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
-
-      return profile?.role === 'admin' || profile?.role === 'both';
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-      return false;
     }
   }
 }
@@ -2179,6 +1138,334 @@ export class DeploymentService {
     } catch (error: any) {
       console.error('Error in getUserDeployments:', error);
       return { success: false, message: error.message || 'Failed to fetch deployments' };
+    }
+  }
+}
+
+/**
+ * Service for handling notifications
+ */
+export class NotificationService {
+  /**
+   * Get notifications for a user
+   * @param userId The ID of the user
+   * @param readStatus Optional filter by read status
+   */
+  static async getNotifications(userId: string, readStatus?: boolean) {
+    try {
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (readStatus !== undefined) {
+        query = query.eq('read', readStatus);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        throw error;
+      }
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getNotifications:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the count of unread notifications for a user
+   * @param userId The ID of the user
+   */
+  static async getUnreadNotificationCount(userId: string): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('read', false);
+
+      if (error) {
+        console.error('Error fetching unread notification count:', error);
+        throw error;
+      }
+      return count || 0;
+    } catch (error: any) {
+      console.error('Error in getUnreadNotificationCount:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark a specific notification as read
+   * @param notificationId The ID of the notification to mark as read
+   */
+  static async markNotificationAsRead(notificationId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true, updated_at: new Date().toISOString() })
+        .eq('id', notificationId);
+
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error in markNotificationAsRead:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Mark all notifications for a user as read
+   * @param userId The ID of the user
+   */
+  static async markAllNotificationsAsRead(userId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('read', false);
+
+      if (error) {
+        console.error('Error marking all notifications as read:', error);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error in markAllNotificationsAsRead:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Create a new notification
+   * @param notificationData The data for the new notification
+   */
+  static async createNotification(notificationData: {
+    user_id: string;
+    type: string;
+    message: string;
+    link?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .insert([notificationData]);
+
+      if (error) {
+        console.error('Error creating notification:', error);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error in createNotification:', error);
+      return { success: false, error: error.message };
+    }
+  }
+}
+
+/**
+ * Service for handling refund requests
+ */
+export class RefundService {
+  /**
+   * Get refund requests for a user
+   * @param userId The ID of the user
+   */
+  static async getUserRefundRequests(userId: string): Promise<RefundRequest[]> {
+    try {
+      const { data, error } = await supabase
+        .from('refund_requests')
+        .select(`
+          *,
+          user:profiles(email, username),
+          subscription:subscriptions(plan_type, stripe_subscription_id)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching refund requests:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getUserRefundRequests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit a new refund request
+   * @param refundData The data for the new refund request
+   */
+  static async submitRefundRequest(refundData: {
+    userId: string;
+    subscriptionId: string;
+    reason: string;
+    amountRequested: number;
+  }): Promise<{ success: boolean; message: string }> {
+    try {
+      const { error } = await supabase
+        .from('refund_requests')
+        .insert([{
+          user_id: refundData.userId,
+          subscription_id: refundData.subscriptionId,
+          reason: refundData.reason,
+          amount_requested: refundData.amountRequested,
+          status: 'pending'
+        }]);
+
+      if (error) {
+        console.error('Error submitting refund request:', error);
+        throw error;
+      }
+
+      // Create notification for admins (you'd need to fetch admin users)
+      try {
+        // In a real application, you would fetch admin user IDs and notify them
+        // For now, just log the action
+        console.log('Refund request created, would notify admins');
+      } catch (notifyError) {
+        console.error('Error creating notification:', notifyError);
+        // Don't fail the operation if notification fails
+      }
+
+      return { 
+        success: true, 
+        message: 'Refund request submitted successfully. Our team will review your request within 2-3 business days.' 
+      };
+    } catch (error: any) {
+      console.error('Error in submitRefundRequest:', error);
+      return { 
+        success: false, 
+        message: error.message || 'Failed to submit refund request. Please try again.' 
+      };
+    }
+  }
+}
+
+/**
+ * Service for handling disputes
+ */
+export class DisputeService {
+  /**
+   * Get disputes for a user
+   * @param userId The ID of the user
+   */
+  static async getUserDisputes(userId: string): Promise<Dispute[]> {
+    try {
+      const { data, error } = await supabase
+        .from('disputes')
+        .select(`
+          *,
+          buyer:profiles!disputes_buyer_id_fkey(email, username),
+          seller:profiles!disputes_seller_id_fkey(email, username),
+          mvp:mvps(title, slug)
+        `)
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+        .order('opened_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching disputes:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getUserDisputes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a specific dispute by ID
+   * @param disputeId The ID of the dispute
+   */
+  static async getDisputeById(disputeId: string): Promise<Dispute | null> {
+    try {
+      const { data, error } = await supabase
+        .from('disputes')
+        .select(`
+          *,
+          buyer:profiles!disputes_buyer_id_fkey(email, username),
+          seller:profiles!disputes_seller_id_fkey(email, username),
+          mvp:mvps(title, slug)
+        `)
+        .eq('id', disputeId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching dispute details:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Error in getDisputeById:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit a new dispute
+   * @param disputeData The data for the new dispute
+   */
+  static async submitDispute(disputeData: {
+    buyerId: string;
+    sellerId: string;
+    mvpId: string;
+    reason: string;
+    details: string;
+  }): Promise<{ success: boolean; message: string }> {
+    try {
+      const { error } = await supabase
+        .from('disputes')
+        .insert([{
+          buyer_id: disputeData.buyerId,
+          seller_id: disputeData.sellerId,
+          mvp_id: disputeData.mvpId,
+          reason: disputeData.reason,
+          details: disputeData.details,
+          status: 'open'
+        }]);
+
+      if (error) {
+        console.error('Error submitting dispute:', error);
+        throw error;
+      }
+
+      // Notify the seller about the dispute
+      try {
+        await NotificationService.createNotification({
+          user_id: disputeData.sellerId,
+          type: 'new_dispute',
+          message: `A buyer has opened a dispute regarding one of your MVPs. Reason: ${disputeData.reason}`,
+          link: '/disputes'
+        });
+      } catch (notifyError) {
+        console.error('Error creating notification:', notifyError);
+        // Don't fail the operation if notification fails
+      }
+
+      return { 
+        success: true, 
+        message: 'Dispute submitted successfully. Our team will review your case within 2-3 business days.' 
+      };
+    } catch (error: any) {
+      console.error('Error in submitDispute:', error);
+      return { 
+        success: false, 
+        message: error.message || 'Failed to submit dispute. Please try again.' 
+      };
     }
   }
 }
