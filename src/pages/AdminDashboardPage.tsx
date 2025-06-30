@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Shield, User, Clock, CheckCircle, XCircle, Package, Users, BarChart3, Search, AlertCircle, Loader2, Mail
+  Shield, User, Clock, CheckCircle, XCircle, Package, Users, BarChart3, Search, AlertCircle, Loader2, Mail,
   DollarSign,
   TrendingUp,
   Eye,
