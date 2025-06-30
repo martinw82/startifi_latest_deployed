@@ -204,7 +204,8 @@ export const Header: React.FC = () => {
                   key={item.label}
                   to={item.href}
                   onClick={() => setIsMenuOpen(false)}
-                  className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors text-gray-700 dark:text-cyber-white"
+                     className="block w-full text-left px-3 py-2 text-gray-700 hover:text-neon-cyan transition-colors dark:text-cyber-white"
+             
                 >
                   {item.label}
                 </Link>
@@ -214,7 +215,8 @@ export const Header: React.FC = () => {
                   <Link
                     to="/dashboard"
                     onClick={() => setIsMenuOpen(false)}
-                    className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-color text-gray-700 dark:text-cyber-whites"
+                      className="block w-full text-left px-3 py-2 text-gray-700 hover:text-neon-cyan transition-colors dark:text-cyber-white"
+               
                   >
                     Dashboard
                   </Link>
