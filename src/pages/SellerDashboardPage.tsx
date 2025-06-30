@@ -7,7 +7,7 @@ import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { MVPUploadService } from '../lib/mvpUpload'; 
-import type { MVP, DownloadIcon } from '../types';
+import type { MVP, Download } from '../types';
 
 export const SellerDashboardPage: React.FC = () => {
   const { user } = useAuth();
