@@ -8,6 +8,15 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Helper function to generate MD5 hash (required by Mailchimp for member IDs)
+async function md5(message: string): Promise<string> {
+  const msgUint8 = new TextEncoder().encode(message); // encode as (utf-8) Uint8Array
+  const hashBuffer = await crypto.subtle.digest('MD5', msgUint8); // hash the message
+  const hashArray = Array.from(new Uint8Array(hashBuffer)); // convert buffer to byte array
+  const hexHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // convert bytes to hex string
+  return hexHash;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -46,7 +55,7 @@ Deno.serve(async (req) => {
     // 2. Fetch newsletter_type details from the database (optional, but good for logging/ESP integration)
     const { data: newsletterType, error: newsletterTypeError } = await supabase
       .from('newsletter_types') // Assuming you have a 'newsletter_types' table
-      .select('name, esp_list_id')
+      .select('name')
       .eq('id', newsletter_type_id)
       .single();
 
@@ -55,16 +64,29 @@ Deno.serve(async (req) => {
       // Continue even if not found, as we might still want to update our internal record
     }
 
-    // 3. Integrate with Email Service Provider (ESP) - Placeholder
-    // In a real application, you would use the ESP_API_KEY and newsletterType.esp_list_id
-    // to remove the user's email from your mailing list.
-    // Example (using a hypothetical ESP API):
-    /*
-    const espApiKey = Deno.env.get('ESP_API_KEY');
-    const espResponse = await fetch(`https://api.example-esp.com/lists/${newsletterType.esp_list_id}/members/${email}/status`, {
-      method: 'PUT', // Or DELETE, depending on ESP API
+    // 3. Integrate with Mailchimp
+    const mailchimpApiKey = Deno.env.get('MAILCHIMP_API_KEY');
+    const mailchimpAudienceId = Deno.env.get('MAILCHIMP_AUDIENCE_ID');
+    const mailchimpApiServer = Deno.env.get('MAILCHIMP_API_SERVER'); // e.g., 'us1', 'us2'
+
+    if (!mailchimpApiKey || !mailchimpAudienceId || !mailchimpApiServer) {
+      console.error('Mailchimp API credentials not set');
+      return new Response(
+        JSON.stringify({ error: 'Mailchimp configuration error' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+
+    const subscriberHash = await md5(email.toLowerCase());
+    const mailchimpUrl = `https://${mailchimpApiServer}.api.mailchimp.com/3.0/lists/${mailchimpAudienceId}/members/${subscriberHash}`;
+
+    const mailchimpResponse = await fetch(mailchimpUrl, {
+      method: 'PATCH', // Use PATCH to update a member's status
       headers: {
-        'Authorization': `Bearer ${espApiKey}`,
+        'Authorization': `Basic ${btoa(`anystring:${mailchimpApiKey}`)}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -72,14 +94,19 @@ Deno.serve(async (req) => {
       }),
     });
 
-    if (!espResponse.ok) {
-      const errorData = await espResponse.json();
-      console.error('Error unsubscribing from ESP:', errorData);
+    if (!mailchimpResponse.ok) {
+      const errorData = await mailchimpResponse.json();
+      console.error('Error unsubscribing from Mailchimp:', errorData);
       // Decide if you want to fail the entire request or just log the ESP error
+      return new Response(
+        JSON.stringify({ error: `Failed to unsubscribe with Mailchimp: ${errorData.detail || 'Unknown error'}` }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
     }
-    */
-    console.log(`[ESP Integration Placeholder] Unsubscribing ${email} from ${newsletterType?.name || 'unknown'} (List ID: ${newsletterType?.esp_list_id || 'unknown'})`);
-
+    console.log(`Successfully unsubscribed ${email} from Mailchimp audience.`);
 
     // 4. Update the record in user_newsletter_subscriptions table
     const { data, error } = await supabase
