@@ -1,6 +1,6 @@
 // src/pages/MVPDetailPage.tsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { APIService, DeploymentService, NotificationService } from '../lib/api';
 import type { MVP, Review } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -15,11 +15,11 @@ export const MVPDetailPage: React.FC = () => {
   const [mvp, setMvp] = useState<MVP | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const auth = useAuth();
+  const { user } = useAuth();
 
   // Download state
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [downloadMessage, setDownloadMessage] = useState<string>('');
+  const [downloadMessage, setDownloadMessage] = useState<string | JSX.Element>('');
 
   // Deployment state
   const [isDeploying, setIsDeploying] = useState<boolean>(false);
@@ -81,7 +81,7 @@ export const MVPDetailPage: React.FC = () => {
     fetchMVPDetails();
   }, [mvpId, fetchMVPReviews]);
 
-  const handleReviewSubmitted = useCallback(async () => {
+  const handleReviewSubmitted = useCallback(async (newReview: Review) => {
     setReviewSubmitMessage("Review submitted successfully! Refreshing reviews...");
     if (mvp) {
       // Notify the seller of the new review
@@ -89,7 +89,7 @@ export const MVPDetailPage: React.FC = () => {
         await NotificationService.createNotification({
           user_id: mvp.seller_id,
           type: 'new_review',
-          message: `Someone left a new review on your MVP "${mvp.title}"`,
+          message: `Someone left a new ${ratingToText(newReview.rating)} review on your MVP "${mvp.title}"`,
           link: `/mvp/${mvp.id}`
         });
       } catch (notificationError) {
@@ -102,8 +102,17 @@ export const MVPDetailPage: React.FC = () => {
     setTimeout(() => setReviewSubmitMessage(''), 3000);
   }, [mvp, fetchMVPReviews]);
 
+  // Helper function to convert rating to text description
+  const ratingToText = (rating: number): string => {
+    if (rating >= 5) return "excellent";
+    if (rating >= 4) return "great";
+    if (rating >= 3) return "good";
+    if (rating >= 2) return "fair";
+    return "poor";
+  };
+
   const handleDeployToNetlify = async () => {
-    if (!auth.user || !mvp) {
+    if (!user || !mvp) {
       setDeploymentMessage('Please login to deploy this MVP.');
       return;
     }
@@ -128,7 +137,7 @@ export const MVPDetailPage: React.FC = () => {
   };
   
   const startDeployment = async () => {
-    if (!auth.user || !mvp || !repoName) {
+    if (!user || !mvp || !repoName) {
       setDeploymentMessage('Missing required information for deployment.');
       return;
     }
@@ -139,7 +148,7 @@ export const MVPDetailPage: React.FC = () => {
     
     try {
       // Step 1: Start the deployment process
-      const startResult = await DeploymentService.startDeployment(auth.user.id, mvp.id);
+      const startResult = await DeploymentService.startDeployment(user.id, mvp.id);
       
       if (!startResult.success) {
         throw new Error(startResult.message);
@@ -159,7 +168,7 @@ export const MVPDetailPage: React.FC = () => {
       // If we already have GitHub authentication, proceed to create repo
       setDeploymentMessage('Creating GitHub repository...');
       const repoResult = await DeploymentService.createRepoAndPushMVP(
-        auth.user.id, 
+        user.id, 
         mvp.id, 
         startResult.deployment_id as string,
         repoName
@@ -173,7 +182,7 @@ export const MVPDetailPage: React.FC = () => {
       
       // Step 3: Initiate Netlify authentication
       const netlifyResult = await DeploymentService.initiateNetlifyAuth(
-        auth.user.id,
+        user.id,
         startResult.deployment_id as string,
         repoResult.github_repo_url as string
       );
@@ -197,15 +206,6 @@ export const MVPDetailPage: React.FC = () => {
       setDeploymentMessage(error.message || 'Failed to deploy MVP');
       setIsDeploying(false);
     }
-  };
-
-  // Helper function to convert rating to text description
-  const ratingToText = (rating: number): string => {
-    if (rating >= 5) return "excellent";
-    if (rating >= 4) return "great";
-    if (rating >= 3) return "good";
-    if (rating >= 2) return "fair";
-    return "poor";
   };
 
   // Helper function to sanitize filename
@@ -347,7 +347,7 @@ export const MVPDetailPage: React.FC = () => {
               <div className="flex flex-wrap gap-4">
                 <GlossyButton
                   onClick={handleDeployToNetlify}
-                  rel="noopener noreferrer" 
+                  disabled={isDeploying || !user}
                   className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 dark:focus:ring-offset-gray-800 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDeploying ? (
@@ -372,14 +372,14 @@ export const MVPDetailPage: React.FC = () => {
           <div className="my-8 text-center">
             <button
               onClick={async () => {
-                if (!mvpId || !mvp || !auth.user) {
-                  setDownloadMessage(auth.user ? "MVP details not loaded." : "Please log in to download.");
+                if (!mvpId || !mvp || !user) {
+                  setDownloadMessage(user ? "MVP details not loaded." : "Please log in to download.");
                   return;
                 }
                 setIsDownloading(true);
                 setDownloadMessage('');
                 try {
-                  const response = await APIService.downloadMVP(mvp.id, auth.user.id);
+                  const response = await APIService.downloadMVP(mvp.id, user.id);
                   if (response.success && response.filePath) {
                     // Programmatically trigger download
                     const link = document.createElement('a');
@@ -422,19 +422,21 @@ export const MVPDetailPage: React.FC = () => {
                 }
               }}
               className="inline-flex items-center justify-center px-10 py-4 border border-transparent text-lg font-semibold rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-offset-gray-800 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isDownloading || !auth.user || !mvp}
+              disabled={isDownloading || !user || !mvp}
             >
               {isDownloading ? (
                 <Loader2 className="w-6 h-6 mr-3 animate-spin" />
               ) : (
                 <Download className="w-6 h-6 mr-3" />
               )}
-              {isDownloading ? 'Processing...' : (auth.user ? 'Download MVP' : 'Login to Download')}
+              {isDownloading ? 'Processing...' : (user ? 'Download MVP' : 'Login to Download')}
             </button>
-            {downloadMessage && (
-              <p className={`mt-3 text-sm ${typeof downloadMessage === 'string' && downloadMessage.startsWith('Your download will begin shortly') ? '' : 'text-red-600 dark:text-red-400'}`}>
-                {downloadMessage}
-              </p>
+            <>
+              {downloadMessage && (
+                <p className={`mt-3 text-sm ${typeof downloadMessage === 'string' && downloadMessage.startsWith('Your download will begin shortly') ? '' : 'text-red-600 dark:text-red-400'}`}>
+                  {downloadMessage}
+                </p>
+              )}
               {user && (
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                   Having issues with this MVP? 
@@ -443,8 +445,8 @@ export const MVPDetailPage: React.FC = () => {
                   </Link>
                 </p>
               )}
-            )}
-            {!auth.user && !isDownloading && (
+            </>
+            {!user && !isDownloading && (
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                 You need to be logged in to download MVPs.
               </p>
@@ -499,19 +501,19 @@ export const MVPDetailPage: React.FC = () => {
             <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">User Reviews</h2>
             {reviewSubmitMessage && <p className="mb-4 text-green-600 dark:text-green-400">{reviewSubmitMessage}</p>}
 
-            {auth.user && mvp && (
+            {user && mvp && (
               <div className="mb-8">
                 <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Submit Your Review</h3>
                 <SubmitReviewForm
                   mvpId={mvp.id}
-                  userId={auth.user.id}
+                  userId={user.id}
                   onReviewSubmitted={handleReviewSubmitted}
                 />
               </div>
             )}
-            {!auth.user && mvp && (
+            {!user && mvp && (
               <p className="mb-6 text-gray-600 dark:text-gray-400">
-                Please <a href="/auth" className="text-blue-600 hover:underline">log in</a> to submit a review.
+                Please <Link to="/auth" className="text-blue-600 hover:underline">log in</Link> to submit a review.
               </p>
             )}
 
