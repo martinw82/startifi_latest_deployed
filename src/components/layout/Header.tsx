@@ -2,14 +2,42 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Code2, Search, User, Bell, Menu, X, Shield, Settings } from 'lucide-react'; // Import Settings icon
+import { Code2, Search, User, Bell, Menu, X, Shield, Settings, Loader2 } from 'lucide-react'; // Add Loader2 icon
 import { GlossyButton } from '../ui/GlossyButton';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { useAuth } from '../../hooks/useAuth';
+import { NotificationService } from '../../lib/api'; // Import NotificationService
 
 export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [loadingNotifications, setLoadingNotifications] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+
+      // Set up an interval to refresh unread count
+      const interval = setInterval(fetchUnreadCount, 60000); // Refresh every minute
+      
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+    
+    try {
+      setLoadingNotifications(true);
+      const count = await NotificationService.getUnreadNotificationCount(user.id);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error fetching unread notifications count:', error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
 
   const navItems = [
     { label: 'Browse MVPs', href: '/mvps' },
@@ -68,13 +96,24 @@ export const Header: React.FC = () => {
 
             {user ? (
               <div className="flex items-center space-x-3">
-                <motion.button
-                  className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors relative"
-                  whileHover={{ scale: 1.1 }}
-                >
-                  <Bell className="w-5 h-5 text-cyber-white" />
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-neon-green rounded-full"></span>
-                </motion.button>
+                <Link to="/notifications">
+                  <motion.button
+                    className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors relative"
+                    whileHover={{ scale: 1.1 }}
+                    aria-label={`${unreadCount} unread notifications`}
+                  >
+                    {loadingNotifications ? (
+                      <Loader2 className="w-5 h-5 text-cyber-white animate-spin" />
+                    ) : (
+                      <Bell className="w-5 h-5 text-cyber-white" />
+                    )}
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-neon-green text-midnight-900 rounded-full px-1">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </motion.button>
+                </Link>
                 
                 <div className="flex items-center space-x-2">
                   {/* Admin Dashboard Link */}
@@ -176,6 +215,16 @@ export const Header: React.FC = () => {
                     className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors"
                   >
                     Dashboard
+                  </Link>
+                  <Link to="/notifications">
+                    <div className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors">
+                      Notifications
+                      {unreadCount > 0 && (
+                        <span className="inline-flex items-center justify-center ml-2 w-5 h-5 text-xs font-bold bg-neon-green text-midnight-900 rounded-full">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </Link>
                   <Link
                     to="/settings"

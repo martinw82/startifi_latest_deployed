@@ -12,6 +12,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { SuccessPage } from './pages/SuccessPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { MVPDetailPage } from './pages/MVPDetailPage.tsx';
 import { UploadMVPPage } from './pages/UploadMVPPage';
 import { MyMVPsPage } from './pages/MyMVPsPage';
@@ -59,6 +60,7 @@ const AppContent: React.FC = () => {
           <Route path="/payouts" element={<PayoutsPage />} />
           <Route path="/analytics" element={<PlaceholderPage pageName="Analytics" />} />
           <Route path="/payout-settings" element={<PlaceholderPage pageName="Payout Settings" />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/connect-stripe" element={<ConnectStripePage />} />
           <Route path="/how-it-works" element={<PlaceholderPage pageName="How It Works" />} />
           <Route path="/stories" element={<PlaceholderPage pageName="Success Stories" />} />

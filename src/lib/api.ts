@@ -498,6 +498,140 @@ export class APIService {
     }
   }
 }
+/**
+ * Service for handling notifications
+ */
+export class NotificationService {
+  /**
+   * Get notifications for a user
+   * @param userId The user ID
+   * @param readStatus Optional filter by read status
+   */
+  static async getNotifications(userId: string, readStatus?: boolean) {
+    try {
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      // Apply read status filter if provided
+      if (readStatus !== undefined) {
+        query = query.eq('read', readStatus);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getNotifications:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark a notification as read
+   * @param notificationId The notification ID
+   */
+  static async markNotificationAsRead(notificationId: string) {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', notificationId);
+
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        throw error;
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error in markNotificationAsRead:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Mark all notifications for a user as read
+   * @param userId The user ID
+   */
+  static async markAllNotificationsAsRead(userId: string) {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', userId)
+        .eq('read', false);
+
+      if (error) {
+        console.error('Error marking all notifications as read:', error);
+        throw error;
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error in markAllNotificationsAsRead:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get the count of unread notifications for a user
+   * @param userId The user ID
+   */
+  static async getUnreadNotificationCount(userId: string) {
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('read', false);
+
+      if (error) {
+        console.error('Error counting unread notifications:', error);
+        throw error;
+      }
+
+      return count || 0;
+    } catch (error: any) {
+      console.error('Error in getUnreadNotificationCount:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Create a new notification
+   * @param notification The notification data
+   */
+  static async createNotification(notification: { 
+    user_id: string; 
+    type: string; 
+    message: string; 
+    link?: string 
+  }) {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .insert([notification]);
+
+      if (error) {
+        console.error('Error creating notification:', error);
+        throw error;
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error in createNotification:', error);
+      return { success: false, error: error.message };
+    }
+  }
+}
 
 // GitHub Integration Methods
 export class GitHubService {
