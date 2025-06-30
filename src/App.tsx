@@ -31,7 +31,7 @@ import { AuthContext, useAuthProvider } from './hooks/useAuth';
 
 const AppContent: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-midnight-900 via-midnight-800 to-midnight-700 text-cyber-white">
+    <div className="min-h-screen bg-background text-foreground">
       <Header />
       <main>
         <Routes>
