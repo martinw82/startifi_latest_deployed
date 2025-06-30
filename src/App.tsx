@@ -36,39 +36,62 @@ const AppContent: React.FC = () => {
   const [showLeadModal, setShowLeadModal] = useState<boolean>(false);
   
   useEffect(() => {
+    console.log('[LeadModalEffect] Running effect to determine modal visibility.');
     // Check if we've shown the modal before
-    const hasSeenModal = localStorage.getItem('hasSeenLeadModal') === 'true';
-    
+    const hasSeenModalString = localStorage.getItem('hasSeenLeadModal');
+    const hasSeenModal = hasSeenModalString === 'true';
+    console.log(`[LeadModalEffect] 'hasSeenLeadModal' from localStorage: ${hasSeenModalString} (parsed as ${hasSeenModal})`);
+
+    // --- TEMPORARY TEST: Force show modal ---
+    // setShowLeadModal(true);
+    // console.log('[LeadModalEffect] TEMPORARILY FORCING MODAL TO SHOW');
+    // return; // Skip other logic if forcing
+    // --- END TEMPORARY TEST ---
+
     if (!hasSeenModal) {
+      console.log('[LeadModalEffect] Modal has not been seen before or flag is not "true". Setting up timer and scroll listener.');
       // Set a timer to show the modal after 15 seconds
       const timer = setTimeout(() => {
+        console.log('[LeadModalEffect] Timer elapsed (15s). Showing modal.');
         setShowLeadModal(true);
+        // Once shown by timer, remove scroll listener if it hasn't triggered yet
+        window.removeEventListener('scroll', handleScroll);
       }, 15000);
-      
+      console.log(`[LeadModalEffect] Timer set with ID: ${timer}`);
+
       // Set up scroll listener to show modal after scrolling 50% of the page
       const handleScroll = () => {
         const scrollPosition = window.scrollY;
         const pageHeight = document.body.scrollHeight - window.innerHeight;
-        const scrollPercentage = (scrollPosition / pageHeight) * 100;
+        // Avoid division by zero if pageHeight is 0 (e.g., content not loaded yet or very short page)
+        const scrollPercentage = pageHeight > 0 ? (scrollPosition / pageHeight) * 100 : 0;
         
+        // console.log(`[LeadModalEffect] Scroll detected. Position: ${scrollPosition}, PageHeight: ${pageHeight}, Percentage: ${scrollPercentage}%`);
+
         if (scrollPercentage > 50) {
+          console.log('[LeadModalEffect] Scrolled more than 50%. Showing modal and cleaning up.');
           setShowLeadModal(true);
           window.removeEventListener('scroll', handleScroll);
-          clearTimeout(timer);
+          clearTimeout(timer); // Clear the timer as scroll condition met
         }
       };
       
       window.addEventListener('scroll', handleScroll);
+      console.log('[LeadModalEffect] Scroll listener attached.');
       
       // Cleanup
       return () => {
+        console.log('[LeadModalEffect] Cleanup function called. Clearing timer and removing scroll listener.');
         clearTimeout(timer);
         window.removeEventListener('scroll', handleScroll);
       };
+    } else {
+      console.log('[LeadModalEffect] Modal has been seen before. Not showing.');
     }
   }, []);
   
   const handleCloseModal = () => {
+    console.log('[LeadModalEvent] Closing modal and setting "hasSeenLeadModal" to true in localStorage.');
     setShowLeadModal(false);
     // Remember that we've shown the modal
     localStorage.setItem('hasSeenLeadModal', 'true');
