@@ -242,6 +242,9 @@ Deno.serve(async (req) => {
     }
     console.log('create-buyer-repo-and-push-mvp: MVP file downloaded.');
 
+    let fileBuffer: ArrayBuffer; // Declare fileBuffer here
+    fileBuffer = await fileData.arrayBuffer(); // Assign value here
+
     console.log(`create-buyer-repo-and-push-mvp: Updating deployment status to 'pushing_code'.`);
     await supabase
       .from('deployments')
@@ -364,9 +367,9 @@ jobs:
         run: |
           echo "archives=$(find . -type f -name "*.zip" -o -name "*.tar.gz" -o -name "*.rar" | xargs)" >> $GITHUB_OUTPUT
       - name: Unpack archive files
-        if: steps.find_archives.outputs.archives != ''
+        if: \${{ steps.find_archives.outputs.archives != '' }}
         run: |
-          for archive in ${{ steps.find_archives.outputs.archives }}; do
+          for archive in \${{ steps.find_archives.outputs.archives }}; do
             echo "Unpacking $archive..."
             if [[ "$archive" == *.zip ]]; then
               unzip -o "$archive" -d .
@@ -380,7 +383,7 @@ jobs:
             fi
           done
       - name: Commit extracted files
-        if: steps.find_archives.outputs.archives != ''
+        if: \${{ steps.find_archives.outputs.archives != '' }}
         run: |
           git config user.name "GitHub Action Bot"
           git config user.email "action-bot@example.com"
