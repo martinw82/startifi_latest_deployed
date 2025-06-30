@@ -26,10 +26,14 @@ import {
   Loader2,
   RefreshCw,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Mail
 } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
+import { NewsletterTypesManagement } from '../components/admin/NewsletterTypesManagement';
+import { UserSubscriptionsManagement } from '../components/admin/UserSubscriptionsManagement';
+import { NewsletterSubscribersManagement } from '../components/admin/NewsletterSubscribersManagement';
 import { useAuth } from '../hooks/useAuth';
 import { NotificationService } from '../lib/api';
 import type { MVP, User } from '../types';
@@ -73,7 +77,11 @@ interface PendingPayout {
 export const AdminDashboardPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'mvps' | 'users' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'mvps' | 'users' | 'analytics' | 'newsletter'>('overview');
+  
+  // Sub-tab for newsletter management
+  const [newsletterTab, setNewsletterTab] = useState<'types' | 'subscriptions' | 'subscribers'>('types');
+  
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending_review' | 'approved' | 'rejected' | 'scan_failed' | 'ipfs_pin_failed'>('all');
@@ -645,9 +653,10 @@ export const AdminDashboardPage: React.FC = () => {
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'mvps', label: 'MVP Reviews', icon: Package },
     { id: 'refunds', label: 'Refund Requests', icon: DollarSign },
-    { id: 'disputes', label: 'Disputes', icon: AlertCircle },
+    { id: 'disputes', label: 'Disputes', icon: AlertTriangle },
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: PieChart },
+    { id: 'newsletter', label: 'Newsletter', icon: Mail },
   ];
 
   return (
@@ -1537,6 +1546,59 @@ export const AdminDashboardPage: React.FC = () => {
             </GlassCard>
           </motion.div>
         )}
+
+        {/* Newsletter Management Tab */}
+        {activeTab === 'newsletter' && (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                Newsletter Management
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300">
+                Manage newsletter types, user subscriptions, and general subscribers.
+              </p>
+            </div>
+            
+            {/* Newsletter Sub-Tabs */}
+            <div className="mb-8">
+              <div className="flex space-x-1 bg-white/10 backdrop-blur-md rounded-xl p-1 max-w-xl">
+                {[
+                  { id: 'types', label: 'Newsletter Types', icon: Mail },
+                  { id: 'subscriptions', label: 'User Subscriptions', icon: Users },
+                  { id: 'subscribers', label: 'General Subscribers', icon: BarChart3 }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setNewsletterTab(tab.id as 'types' | 'subscriptions' | 'subscribers')}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex-1 ${
+                      newsletterTab === tab.id
+                        ? 'bg-neon-green text-midnight-900'
+                        : 'text-gray-700 dark:text-gray-300 hover:text-neon-green dark:hover:text-neon-green'
+                    }`}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Newsletter Type Management */}
+            {newsletterTab === 'types' && (
+              <NewsletterTypesManagement />
+            )}
+            
+            {/* User Subscriptions Management */}
+            {newsletterTab === 'subscriptions' && (
+              <UserSubscriptionsManagement />
+            )}
+            
+            {/* General Subscribers Management */}
+            {newsletterTab === 'subscribers' && (
+              <NewsletterSubscribersManagement />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1738,7 +1800,7 @@ const RefundRequestsTab: React.FC = () => {
                           {processingRequest === request.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
-                            <AlertCircle className="w-4 h-4 mr-1" />
+                            <AlertTriangle className="w-4 h-4 mr-1" />
                           )}
                           <span>Reject</span>
                         </GlossyButton>
@@ -2051,7 +2113,7 @@ const DisputesTab: React.FC = () => {
                           disabled={!!processingDispute}
                           onClick={() => openResolutionModal(dispute.id, 'closed_no_action')}
                         >
-                          <AlertCircle className="w-4 h-4 mr-1" />
+                          <AlertTriangle className="w-4 h-4 mr-1" />
                           <span>Close</span>
                         </GlossyButton>
                       </div>
