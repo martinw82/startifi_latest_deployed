@@ -62,7 +62,7 @@ export const Header: React.FC = () => {
             >
               <Code2 className="w-8 h-8 text-neon-green" />
               <span className="text-xl font-bold bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent">
-                MVP Library
+                Startifi
               </span>
             </motion.div>
           </Link>

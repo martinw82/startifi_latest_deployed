@@ -54,7 +54,7 @@ export const Footer: React.FC = () => {
               whileHover={{ scale: 1.05 }}
             >
               <Code2 className="w-8 h-8 text-neon-green" />
-              <span className="text-xl font-bold bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent">MVP Library</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent">Startifi</span>
             </motion.div>
             <p className="text-cyber-gray mb-6">
               Accelerate your development with AI-ready MVP codebases. 
@@ -114,7 +114,7 @@ export const Footer: React.FC = () => {
         <div className="border-t border-neon-green/20 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-cyber-gray">
-              © 2025 MVP Library. All rights reserved.
+              © 2025 Startifi. All rights reserved.
             </p>
             <p className="text-cyber-gray mt-4 md:mt-0">
               Built for developers, by developers
