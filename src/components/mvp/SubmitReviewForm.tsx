@@ -40,7 +40,7 @@ const SubmitReviewForm: React.FC<SubmitReviewFormProps> = ({ mvpId, userId, onRe
         setSubmissionMessage({ type: 'success', text: response.message });
         setRating(0);
         setComment('');
-        onReviewSubmitted();
+       onReviewSubmitted(response.review);
       } else {
         setSubmissionMessage({ type: 'error', text: response.message || 'Failed to submit review.' });
       }
