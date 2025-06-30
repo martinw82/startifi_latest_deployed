@@ -118,10 +118,10 @@ export const AuthPage: React.FC = () => {
   return (
     <div className="min-h-screen pt-24 pb-16 flex items-center justify-center">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 transition-colors duration-300" />
       
       <div className="relative max-w-md w-full mx-auto px-4">
-        <GlassCard className="p-8">
+        <GlassCard className="p-8 bg-white dark:bg-midnight-800/10 shadow-glass-light dark:shadow-lg">
           {/* Header */}
           <div className="text-center mb-8">
             <motion.div
@@ -146,7 +146,7 @@ export const AuthPage: React.FC = () => {
             <GlossyButton
               onClick={handleBetaLogin}
               disabled={loading}
-              className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-500 dark:from-green-600 dark:to-emerald-600 hover:from-green-600 hover:to-emerald-600 dark:hover:from-green-700 dark:hover:to-emerald-700"
             >
               <TestTube className="w-4 h-4" />
               <span>Beta Access (beta/beta)</span>
@@ -162,12 +162,12 @@ export const AuthPage: React.FC = () => {
               <div className="w-full border-t border-gray-300 dark:border-gray-600" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white/10 text-gray-500 dark:text-gray-400">Or continue with</span>
+              <span className="px-2 bg-white dark:bg-white/10 text-gray-500 dark:text-gray-400">Or continue with</span>
             </div>
           </div>
 
           {/* Mode Toggle */}
-          <div className="flex rounded-xl bg-white/10 p-1 mb-6">
+          <div className="flex rounded-xl bg-gray-100 dark:bg-white/10 p-1 mb-6 shadow-sm">
             <button
               onClick={() => setMode('signin')}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -192,11 +192,11 @@ export const AuthPage: React.FC = () => {
 
           {/* Role Selection (Sign Up Only) */}
           {mode === 'signup' && (
-            <div className="mb-6">
+            <div className="mb-6 transition-colors duration-300">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                 I want to:
               </label>
-              <div className="flex rounded-xl bg-white/10 p-1">
+              <div className="flex rounded-xl bg-gray-100 dark:bg-white/10 p-1 shadow-sm">
                 <button
                   onClick={() => setRole('buyer')}
                   className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -232,10 +232,10 @@ export const AuthPage: React.FC = () => {
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="email"
-                  value={formData.email}
+                  value={formData.email} 
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   className={`w-full pl-10 pr-4 py-3 bg-white/10 backdrop-blur-md border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 ${
-                    errors.email ? 'border-red-500' : 'border-white/20'
+                    errors.email ? 'border-red-500' : 'border-gray-300 dark:border-white/20'
                   }`}
                   placeholder="Enter your email"
                 />
@@ -257,7 +257,7 @@ export const AuthPage: React.FC = () => {
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   className={`w-full pl-10 pr-12 py-3 bg-white/10 backdrop-blur-md border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 ${
-                    errors.password ? 'border-red-500' : 'border-white/20'
+                    errors.password ? 'border-red-500' : 'border-gray-300 dark:border-white/20'
                   }`}
                   placeholder="Enter your password"
                 />
@@ -291,7 +291,7 @@ export const AuthPage: React.FC = () => {
                     value={formData.confirmPassword}
                     onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                     className={`w-full pl-10 pr-4 py-3 bg-white/10 backdrop-blur-md border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 ${
-                      errors.confirmPassword ? 'border-red-500' : 'border-white/20'
+                      errors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-white/20'
                     }`}
                     placeholder="Confirm your password"
                   />
@@ -304,8 +304,8 @@ export const AuthPage: React.FC = () => {
 
             {/* Submit Error */}
             {errors.submit && (
-              <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg">
-                <p className="text-red-700 dark:text-red-300 text-sm">{errors.submit}</p>
+              <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
+                <p className="text-red-700 dark:text-red-300 text-sm transition-colors duration-300">{errors.submit}</p>
               </div>
             )}
 
@@ -320,7 +320,7 @@ export const AuthPage: React.FC = () => {
           </form>
 
           {/* Footer */}
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center transition-colors duration-300">
             <p className="text-sm text-gray-600 dark:text-gray-300">
               {mode === 'signin' ? "Don't have an account? " : "Already have an account? "}
               <button
