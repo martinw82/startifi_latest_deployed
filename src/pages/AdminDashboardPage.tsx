@@ -31,6 +31,7 @@ import {
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
+import { NotificationService } from '../lib/api';
 import type { MVP, User } from '../types';
 import { supabase } from '../lib/supabase';
 import { APIService } from '../lib/api';
@@ -416,6 +417,23 @@ export const AdminDashboardPage: React.FC = () => {
       if (error) {
         console.error(`Error ${action}ing MVP:`, error);
         alert(`Failed to ${action} MVP: ${error.message}`);
+        return;
+      }
+
+      // Send notification to the seller
+      try {
+        const mvpSellerId = mvp.seller_id || mvp.profiles?.id;
+        if (mvpSellerId) {
+          await NotificationService.createNotification({
+            user_id: mvpSellerId,
+            type: action === 'approve' ? 'mvp_approved' : 'mvp_rejected',
+            message: `Your MVP "${mvp.title}" has been ${action}d by an administrator.`,
+            link: `/mvp/${mvp.id}`
+          });
+        }
+      } catch (notificationError) {
+        console.error('Error creating notification:', notificationError);
+        // Don't fail the action if notification creation fails
         return;
       }
 
