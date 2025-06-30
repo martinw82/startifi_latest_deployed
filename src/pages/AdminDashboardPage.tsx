@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users,
+  Shield, User, Clock, CheckCircle, XCircle, Package, Users, BarChart3, Search, AlertCircle, Loader2, Mail
   Package,
   DollarSign,
   TrendingUp,
@@ -34,6 +34,7 @@ import { GlossyButton } from '../components/ui/GlossyButton';
 import { NewsletterTypesManagement } from '../components/admin/NewsletterTypesManagement';
 import { UserSubscriptionsManagement } from '../components/admin/UserSubscriptionsManagement';
 import { NewsletterSubscribersManagement } from '../components/admin/NewsletterSubscribersManagement';
+import { NewsletterTypesManagement, UserSubscriptionsManagement, NewsletterSubscribersManagement } from '../components/admin';
 import { useAuth } from '../hooks/useAuth';
 import { NotificationService } from '../lib/api';
 import type { MVP, User } from '../types';
@@ -78,6 +79,7 @@ export const AdminDashboardPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'mvps' | 'users' | 'analytics' | 'newsletter'>('overview');
+  const [activeNewsletterTab, setActiveNewsletterTab] = useState<'types' | 'subscribers' | 'userSubscriptions'>('types');
   
   // Sub-tab for newsletter management
   const [newsletterTab, setNewsletterTab] = useState<'types' | 'subscriptions' | 'subscribers'>('types');
@@ -934,6 +936,73 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         )}
 
+        {/* Newsletter Management Tab */}
+        {activeTab === 'newsletter' && (
+          <div className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <GlassCard className="p-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                  Newsletter Management
+                </h2>
+                
+                {/* Sub-tab navigation for newsletter management */}
+                <div className="mb-6">
+                  <div className="flex space-x-1 bg-white/10 dark:bg-gray-800/10 backdrop-blur-md rounded-xl p-1 overflow-x-auto">
+                    <button
+                      onClick={() => setActiveNewsletterTab('types')}
+                      className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeNewsletterTab === 'types'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-white/20'
+                      }`}
+                    >
+                      Newsletter Types
+                    </button>
+                    <button
+                      onClick={() => setActiveNewsletterTab('subscribers')}
+                      className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeNewsletterTab === 'subscribers'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-white/20'
+                      }`}
+                    >
+                      Subscribers
+                    </button>
+                    <button
+                      onClick={() => setActiveNewsletterTab('userSubscriptions')}
+                      className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeNewsletterTab === 'userSubscriptions'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-white/20'
+                      }`}
+                    >
+                      User Subscriptions
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Newsletter Types Management */}
+                {activeNewsletterTab === 'types' && (
+                  <NewsletterTypesManagement />
+                )}
+                
+                {/* Newsletter Subscribers Management */}
+                {activeNewsletterTab === 'subscribers' && (
+                  <NewsletterSubscribersManagement />
+                )}
+                
+                {/* User Subscriptions Management */}
+                {activeNewsletterTab === 'userSubscriptions' && (
+                  <UserSubscriptionsManagement />
+                )}
+              </GlassCard>
+            </motion.div>
+          </div>
+        )}
         {/* MVP Reviews Tab */}
         {activeTab === 'mvps' && (
           <motion.div
@@ -1079,6 +1148,17 @@ export const AdminDashboardPage: React.FC = () => {
                     No MVPs matching your filters
                   </p>
                 )}
+                <button
+                  onClick={() => setActiveTab('newsletter')}
+                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'newsletter'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-white/20'
+                  }`}
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  <span>Newsletter</span>
+                </button>
               </div>
             </GlassCard>
           </motion.div>
