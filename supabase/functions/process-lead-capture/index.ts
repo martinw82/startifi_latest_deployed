@@ -8,6 +8,15 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Helper function to generate MD5 hash (required by Mailchimp for member IDs)
+async function md5(message: string): Promise<string> {
+  const msgUint8 = new TextEncoder().encode(message); // encode as (utf-8) Uint8Array
+  const hashBuffer = await crypto.subtle.digest('MD5', msgUint8); // hash the message
+  const hashArray = Array.from(new Uint8Array(hashBuffer)); // convert buffer to byte array
+  const hexHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // convert bytes to hex string
+  return hexHash;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -139,10 +148,55 @@ Deno.serve(async (req) => {
     // For example, using the Mailchimp API, SendGrid, etc.
     // This would be done via fetch() calls to their API
 
+    // ---- BEGIN MAILCHIMP INTEGRATION ----
+    const mailchimpApiKey = Deno.env.get('MAILCHIMP_API_KEY');
+    const mailchimpAudienceId = Deno.env.get('MAILCHIMP_AUDIENCE_ID');
+    const mailchimpApiServer = Deno.env.get('MAILCHIMP_API_SERVER'); // e.g., 'us1', 'us2'
+
+    if (!mailchimpApiKey || !mailchimpAudienceId || !mailchimpApiServer) {
+      console.error('Mailchimp API credentials not set for process-lead-capture');
+      // Log this error but don't necessarily fail the whole process,
+      // as lead is already captured in Supabase.
+      // Depending on requirements, this could be a hard error.
+    } else {
+      try {
+        const subscriberHash = await md5(email.toLowerCase());
+        const mailchimpUrl = `https://${mailchimpApiServer}.api.mailchimp.com/3.0/lists/${mailchimpAudienceId}/members/${subscriberHash}`;
+
+        const mailchimpResponse = await fetch(mailchimpUrl, {
+          method: 'PUT', // Use PUT to add or update a member
+          headers: {
+            'Authorization': `Basic ${btoa(`anystring:${mailchimpApiKey}`)}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email_address: email,
+            status_if_new: 'subscribed', // Set status for new members
+            status: 'subscribed', // Update status for existing members
+            // You could add merge fields here if needed, e.g., source
+            // merge_fields: {
+            //   SOURCE: source || 'lead_modal'
+            // }
+          }),
+        });
+
+        if (!mailchimpResponse.ok) {
+          const errorData = await mailchimpResponse.json();
+          console.error('Error adding/updating subscriber to Mailchimp from process-lead-capture:', errorData);
+          // Again, log but don't fail the primary DB operation.
+        } else {
+          console.log(`Successfully synced ${email} to Mailchimp audience from process-lead-capture.`);
+        }
+      } catch (mcError) {
+        console.error('Exception during Mailchimp sync in process-lead-capture:', mcError);
+      }
+    }
+    // ---- END MAILCHIMP INTEGRATION ----
+
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Successfully subscribed to the newsletter!'
+        message: 'Successfully subscribed to the newsletter!' // This message might need adjustment if Mailchimp fails but DB succeeds
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

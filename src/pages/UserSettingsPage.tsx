@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Mail, Loader2, AlertCircle, CheckCircle, Github, Code, Link2, Globe, FileText, Camera, Lock, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Loader2, AlertCircle, CheckCircle, Github, Code, Link2, Globe, FileText, Camera, Lock, Eye, EyeOff, Bell } from 'lucide-react'; // Added Bell
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
 import { AuthService } from '../lib/auth';
-import { DeploymentService } from '../lib/api';
+import { DeploymentService, MarketingService } from '../lib/api'; // Added MarketingService
 import { supabase } from '../lib/supabase';
+import { NewsletterService } from '../lib/newsletterService'; // Added NewsletterService
+
+// Assume this is the ID for the "General Site Newsletter" type.
+// This should ideally be fetched or configured.
+const GENERAL_NEWSLETTER_TYPE_ID = 'general-site-updates-id';
 
 export const UserSettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, refetch: refetchUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'connections'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'connections' | 'notifications'>('profile'); // Added 'notifications'
   
   // Profile fields
   const [profileForm, setProfileForm] = useState({
@@ -47,6 +52,11 @@ export const UserSettingsPage: React.FC = () => {
   const [hasGithubConnection, setHasGithubConnection] = useState(false);
   const [hasNetlifyConnection, setHasNetlifyConnection] = useState(false);
 
+  // Newsletter subscription state
+  const [isSubscribedToGeneralNewsletter, setIsSubscribedToGeneralNewsletter] = useState(false);
+  const [isNewsletterLoading, setIsNewsletterLoading] = useState(false);
+
+
   useEffect(() => {
     if (!authLoading && user) {
       // Pre-fill with existing user data
@@ -65,6 +75,8 @@ export const UserSettingsPage: React.FC = () => {
       
       // Check for existing GitHub and Netlify connections
       checkOAuthConnections(user.id);
+      // Fetch newsletter subscription status
+      fetchNewsletterSubscriptionStatus(user.id, user.email);
     }
   }, [user, authLoading]);
 
@@ -73,6 +85,55 @@ export const UserSettingsPage: React.FC = () => {
       navigate('/auth');
     }
   }, [user, authLoading, navigate]);
+
+  const fetchNewsletterSubscriptionStatus = async (userId: string, email: string | undefined) => {
+    if (!email) return; // Email is required for newsletter operations
+    setIsNewsletterLoading(true);
+    try {
+      const subscriptions = await NewsletterService.getUserSubscriptions(userId);
+      const generalSubscription = subscriptions.find(
+        sub => sub.newsletter_type_id === GENERAL_NEWSLETTER_TYPE_ID && sub.status === 'active'
+      );
+      setIsSubscribedToGeneralNewsletter(!!generalSubscription);
+    } catch (error) {
+      console.error('Error fetching newsletter subscription status:', error);
+      // Keep it false or show an error
+    } finally {
+      setIsNewsletterLoading(false);
+    }
+  };
+
+  const handleNewsletterToggle = async () => {
+    if (!user || !user.email) {
+      setMessage({ type: 'error', text: 'User email is not available.' });
+      return;
+    }
+
+    setIsNewsletterLoading(true);
+    setMessage(null);
+
+    try {
+      let result;
+      if (isSubscribedToGeneralNewsletter) {
+        // User wants to unsubscribe
+        result = await NewsletterService.unsubscribeFromNewsletter(user.id, GENERAL_NEWSLETTER_TYPE_ID, user.email);
+      } else {
+        // User wants to subscribe
+        result = await NewsletterService.subscribeToNewsletter(user.id, GENERAL_NEWSLETTER_TYPE_ID, user.email, 'user_settings');
+      }
+
+      if (result.success) {
+        setIsSubscribedToGeneralNewsletter(!isSubscribedToGeneralNewsletter);
+        setMessage({ type: 'success', text: result.message });
+      } else {
+        setMessage({ type: 'error', text: result.message });
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to update newsletter subscription.' });
+    } finally {
+      setIsNewsletterLoading(false);
+    }
+  };
 
   const checkOAuthConnections = async (userId: string) => {
     try {
@@ -333,6 +394,17 @@ export const UserSettingsPage: React.FC = () => {
             >
               <Link2 className="w-4 h-4" />
               <span>Connections</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'notifications'
+                  ? 'bg-neon-green text-midnight-900 dark:text-midnight-900'
+                  : 'text-gray-700 dark:text-gray-300 hover:text-neon-green dark:hover:text-neon-green'
+              }`}
+            >
+              <Bell className="w-4 h-4" />
+              <span>Notifications</span>
             </button>
           </div>
         </div>
@@ -777,6 +849,59 @@ export const UserSettingsPage: React.FC = () => {
                     {isConnectingNetlify ? 'Connecting...' : (hasNetlifyConnection ? 'Reconnect' : 'Connect')}
                   </GlossyButton>
                 </div>
+              </div>
+            </GlassCard>
+          </motion.div>
+        )}
+
+        {/* Notifications Tab Content */}
+        {activeTab === 'notifications' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <GlassCard className="p-8">
+              <h2 className="text-xl font-semibold text-neon-green mb-6">
+                Newsletter Subscriptions
+              </h2>
+
+              <div className="space-y-6">
+                {/* General Newsletter Subscription */}
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                  <div>
+                    <h3 className="font-medium text-gray-900 dark:text-white">General Site Updates & Announcements</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      Receive news about our platform, new features, and occasional promotions.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleNewsletterToggle}
+                    disabled={isNewsletterLoading}
+                    className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neon-green ${
+                      isSubscribedToGeneralNewsletter ? 'bg-neon-green' : 'bg-gray-400 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span className="sr-only">Toggle newsletter subscription</span>
+                    {isNewsletterLoading && (
+                       <span
+                         aria-hidden="true"
+                         className="pointer-events-none absolute h-full w-full flex items-center justify-center"
+                       >
+                        <Loader2 className="h-4 w-4 animate-spin text-white"/>
+                       </span>
+                    )}
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
+                        isSubscribedToGeneralNewsletter ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+                {/* Add more newsletter type toggles here if needed */}
               </div>
             </GlassCard>
           </motion.div>
