@@ -1469,3 +1469,49 @@ export class DisputeService {
     }
   }
 }
+
+/**
+ * Service for handling marketing functions
+ */
+export class MarketingService {
+  /**
+   * Process a lead capture from the modal
+   * @param email The email address
+   * @param agreedToTerms Whether they agreed to the privacy terms
+   */
+  static async processLeadCapture(email: string, agreedToTerms: boolean): Promise<{ success: boolean; message: string }> {
+    try {
+      if (!email) {
+        return { success: false, message: 'Email is required' };
+      }
+      
+      if (!agreedToTerms) {
+        return { success: false, message: 'You must agree to the privacy policy' };
+      }
+      
+      // Call the Edge Function to process the lead
+      const { data, error } = await supabase.functions.invoke('process-lead-capture', {
+        body: {
+          email,
+          source: 'lead_modal',
+          agreed_to_terms: agreedToTerms,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      if (error) {
+        console.error('Error invoking process-lead-capture function:', error);
+        return { success: false, message: 'Failed to process subscription. Please try again.' };
+      }
+      
+      if (data?.success) {
+        return { success: true, message: 'Thank you! You\'ve been subscribed to our newsletter.' };
+      } else {
+        return { success: false, message: data?.error || 'Failed to subscribe. Please try again.' };
+      }
+    } catch (error: any) {
+      console.error('Error in processLeadCapture:', error);
+      return { success: false, message: error.message || 'An unexpected error occurred' };
+    }
+  }
+}

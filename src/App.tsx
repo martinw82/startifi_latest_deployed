@@ -26,10 +26,74 @@ import { EditMVPPage } from './pages/EditMVPPage'; // Import the new EditMVPPage
 import { UserSettingsPage } from './pages/UserSettingsPage'; // Import UserSettingsPage
 import { RefundRequestPage } from './pages/RefundRequestPage'; // Import RefundRequestPage
 import { DisputePage } from './pages/DisputePage'; // Import DisputePage
+import { LeadCaptureModal } from './components/marketing/LeadCaptureModal'; // Import LeadCaptureModal
 import { DisputeDetailPage } from './pages/DisputeDetailPage'; // Import DisputeDetailPage
 import { AuthContext, useAuthProvider } from './hooks/useAuth';
+import { MarketingService } from './lib/api'; // Import MarketingService
 
 const AppContent: React.FC = () => {
+  // State for managing the lead capture modal
+  const [showLeadModal, setShowLeadModal] = useState<boolean>(false);
+  
+  useEffect(() => {
+    // Check if we've shown the modal before
+    const hasSeenModal = localStorage.getItem('hasSeenLeadModal') === 'true';
+    
+    if (!hasSeenModal) {
+      // Set a timer to show the modal after 15 seconds
+      const timer = setTimeout(() => {
+        setShowLeadModal(true);
+      }, 15000);
+      
+      // Set up scroll listener to show modal after scrolling 50% of the page
+      const handleScroll = () => {
+        const scrollPosition = window.scrollY;
+        const pageHeight = document.body.scrollHeight - window.innerHeight;
+        const scrollPercentage = (scrollPosition / pageHeight) * 100;
+        
+        if (scrollPercentage > 50) {
+          setShowLeadModal(true);
+          window.removeEventListener('scroll', handleScroll);
+          clearTimeout(timer);
+        }
+      };
+      
+      window.addEventListener('scroll', handleScroll);
+      
+      // Cleanup
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, []);
+  
+  const handleCloseModal = () => {
+    setShowLeadModal(false);
+    // Remember that we've shown the modal
+    localStorage.setItem('hasSeenLeadModal', 'true');
+  };
+  
+  const handleSubmitLead = async (email: string, agreedToTerms: boolean) => {
+    try {
+      const result = await MarketingService.processLeadCapture(email, agreedToTerms);
+      
+      // Track conversion
+      if (result.success) {
+        // In a real app, you would track this conversion
+        console.log('Lead captured successfully:', email);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error submitting lead:', error);
+      return { 
+        success: false, 
+        message: 'An unexpected error occurred. Please try again later.'
+      };
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
@@ -85,6 +149,14 @@ const AppContent: React.FC = () => {
           <Route path="*" element={<PlaceholderPage pageName="Page Not Found" />} />
         </Routes>
       </main>
+      
+      {/* Lead Capture Modal */}
+      <LeadCaptureModal
+        isOpen={showLeadModal}
+        onClose={handleCloseModal}
+        onSubmit={handleSubmitLead}
+      />
+      
       <Footer />
     </div>
   );
