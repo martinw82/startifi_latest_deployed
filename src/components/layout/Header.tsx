@@ -85,12 +85,12 @@ export const Header: React.FC = () => {
           <div className="flex items-center space-x-4">
             {/* Search */}
             <motion.button
-              className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors text-gray-700 dark:text-cyber-white"
+              className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
-              <Search className="w-5 h-5 text-cyber-white" />
-            </motion.button>
+              <Search className="w-5 h-5 text-gray-700 dark:text-cyber-white" />
+                    </motion.button>
 
             <ThemeToggle />
 
@@ -98,15 +98,16 @@ export const Header: React.FC = () => {
               <div className="flex items-center space-x-3">
                 <Link to="/notifications">
                   <motion.button
-                    className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors relative text-gray-700 dark:text-cyber-white"
+                     className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors relative"
+                
                     whileHover={{ scale: 1.1 }}
                     aria-label={`${unreadCount} unread notifications`}
                   >
                     {loadingNotifications ? (
-                      <Loader2 className="w-5 h-5 text-cyber-white animate-spin" />
-                    ) : (
-                      <Bell className="w-5 h-5 text-cyber-white" />
-                    )}
+                       <Loader2 className="w-5 h-5 text-gray-700 dark:text-cyber-white animate-spin" />
+                      ) : (
+                     <Bell className="w-5 h-5 text-gray-700 dark:text-cyber-white" />
+                          )}
                     {unreadCount > 0 && (
                       <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-neon-green text-midnight-900 rounded-full px-1">
                         {unreadCount > 99 ? '99+' : unreadCount}
@@ -120,33 +121,34 @@ export const Header: React.FC = () => {
                   {(user.role === 'admin' || user.role === 'both') && (
                     <Link to="/admin">
                       <motion.button
-                        className="p-2 rounded-full bg-neon-green/10 dark:bg-neon-green/20 border border-neon-green/30 dark:border-neon-green/40 hover:bg-neon-green/20 dark:hover:bg-neon-green/30 transition-colors text-blue-600 dark:text-neon-green"
+                        className="p-2 rounded-full bg-neon-green/10 dark:bg-neon-green/20 border border-neon-green/30 dark:border-neon-green/40 hover:bg-neon-green/20 dark:hover:bg-neon-green/30 transition-colors"
                         whileHover={{ scale: 1.1 }}
                         title="Admin Dashboard"
                       >
-                        <Shield className="w-5 h-5 text-neon-green" />
-                      </motion.button>
+                         <Shield className="w-5 h-5 text-blue-600 dark:text-neon-green" />
+                         </motion.button>
                     </Link>
                   )}
                   
                   {/* User Settings Link */}
                   <Link to="/settings">
                     <motion.button
-                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors text-gray-700 dark:text-cyber-white"
+                       className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+                    
                       whileHover={{ scale: 1.1 }}
                       title="User Settings"
                     >
-                      <Settings className="w-5 h-5 text-cyber-white" />
-                    </motion.button>
+                      <Settings className="w-5 h-5 text-gray-700 dark:text-cyber-white" />
+                      </motion.button>
                   </Link>
 
                   <Link to="/dashboard">
                     <motion.button
-                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors text-gray-700 dark:text-cyber-white"
+                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
                       whileHover={{ scale: 1.1 }}
                     >
-                      <User className="w-5 h-5 text-cyber-white" />
-                    </motion.button>
+                          <User className="w-5 h-5 text-gray-700 dark:text-cyber-white" />
+                     </motion.button>
                   </Link>
                   <GlossyButton
                     variant="outline"
@@ -179,12 +181,12 @@ export const Header: React.FC = () => {
 
             {/* Mobile menu button */}
             <motion.button
-              className="md:hidden p-2 rounded-lg text-cyber-white"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden p-2 rounded-lg text-gray-700 dark:text-cyber-white"
+                 onClick={() => setIsMenuOpen(!isMenuOpen)}
               whileTap={{ scale: 0.95 }}
             >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </motion.button>
+             {isMenuOpen ? <X className="w-6 h-6 text-gray-700 dark:text-cyber-white" /> : <Menu className="w-6 h-6 text-gray-700 dark:text-cyber-white" />}
+              </motion.button>
           </div>
         </div>
 
