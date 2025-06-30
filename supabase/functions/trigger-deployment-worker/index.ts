@@ -77,7 +77,60 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Fetch full deployment details to verify all fields are present
+    console.log(`Fetching full deployment details for ID: ${deployment_id}`);
+    const { data: fullDeployment, error: fullDeploymentError } = await supabase
+      .from('deployments')
+      .select('*')
+      .eq('id', deployment_id)
+      .single();
+    
+    if (fullDeploymentError) {
+      console.error('Error fetching full deployment details:', fullDeploymentError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch complete deployment details' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+    
+    // Debug log the deployment record that will be sent to the worker
+    console.log('Full deployment record:', JSON.stringify(fullDeployment));
+    
+    // Check for required repository fields
+    if (!fullDeployment.repo_owner || !fullDeployment.repo_name || !fullDeployment.github_repo_url) {
+      const missingFields = [];
+      if (!fullDeployment.repo_owner) missingFields.push('repo_owner');
+      if (!fullDeployment.repo_name) missingFields.push('repo_name');
+      if (!fullDeployment.github_repo_url) missingFields.push('github_repo_url');
+      
+      console.error(`Missing repository details: ${missingFields.join(', ')}`);
+      
+      await supabase
+        .from('deployments')
+        .update({
+          error_message: `Missing repository details: ${missingFields.join(', ')}`,
+          status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', deployment_id);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: `Missing repository details: ${missingFields.join(', ')}`,
+          deployment: fullDeployment
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
+    }
+
     // Call the Railway worker
+    console.log(`Calling Railway worker at: ${railwayWorkerUrl}/deploy with deployment ID: ${deployment_id}`);
     const workerResponse = await fetch(`${railwayWorkerUrl}/deploy`, {
       method: 'POST',
       headers: {
@@ -86,11 +139,23 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         deployment_id: deployment_id,
       }),
+    }).catch(error => {
+      console.error('Network error calling Railway worker:', error);
+      throw error;
     });
 
     if (!workerResponse.ok) {
       const errorText = await workerResponse.text();
       console.error('Railway worker error response:', errorText);
+      
+      try {
+        // Log more details if possible
+        const errorJson = JSON.parse(errorText);
+        console.error('Parsed error details:', errorJson);
+      } catch (e) {
+        // If not JSON, just log the raw text
+        console.error('Raw error response:', errorText);
+      }
       
       // Update deployment status to failed
       await supabase
