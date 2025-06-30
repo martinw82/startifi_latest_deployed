@@ -989,7 +989,7 @@ export class DeploymentService {
             mvp_id: mvpId,
             deployment_id: deployment.id,
             repo_name: repoName,
-            create_only: true, // Only create the repo, don't push the code yet
+  //removed because it smells bad          create_only: true, // Only create the repo, don't push the code yet
           },
         }
       );
