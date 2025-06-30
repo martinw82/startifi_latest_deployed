@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
     // Update deployment with Netlify site info and set status to completed
     // We're keeping the status as 'completed' even though the GitHub Action will still run
     // The user will see the site appear after the GitHub Action unpacks the files and Netlify builds
-    await supabase
+    const { data: updatedDeployment, error: updateError } = await supabase
       .from('deployments')
       .update({
         netlify_site_url: siteUrl,
@@ -222,6 +222,21 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', deployment_id);
+
+    if (updateError) {
+      console.error('Error updating deployment with Netlify info:', updateError);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to update deployment with Netlify site info');
+      return new Response(
+        JSON.stringify({ error: 'Failed to update deployment with Netlify site info' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+
+    // Log the final updated deployment record for debugging
+    console.log('Final updated deployment record:', JSON.stringify(updatedDeployment));
 
     // Return success with Netlify site URL
     return new Response(
