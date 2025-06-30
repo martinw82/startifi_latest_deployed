@@ -7,7 +7,7 @@ import {
   DollarSign,
   TrendingUp,
   Eye,
-  XCircle,
+  
   Clock,
   AlertTriangle,
   Search,
