@@ -421,7 +421,23 @@ async function handleTransferPaid(event: Stripe.Event) {
       } else {
         console.info(`Marked payout ${transfer.metadata.payout_id} as completed`);
         
-        // TODO: Send payout confirmation email to seller
+        // Create notification for the seller
+        try {
+          const amountInUSD = transfer.amount / 100; // Convert from cents to dollars
+          const { error: notificationError } = await supabase.from('notifications').insert([{
+            user_id: transfer.metadata.seller_id,
+            type: 'payout_completed',
+            message: `Your payout of $${amountInUSD.toFixed(2)} for ${transfer.metadata.month_year} has been completed.`,
+            link: '/payouts',
+            read: false
+          }]);
+          
+          if (notificationError) {
+            console.error('Error creating payout completion notification:', notificationError);
+          }
+        } catch (notificationError) {
+          console.error('Error creating payout notification:', notificationError);
+        }
       }
     }
   } catch (error) {
@@ -448,7 +464,22 @@ async function handleTransferFailed(event: Stripe.Event) {
       } else {
         console.info(`Marked payout ${transfer.metadata.payout_id} as failed`);
         
-        // TODO: Send payout failure notification to seller
+        // Create notification for the seller
+        try {
+          const { error: notificationError } = await supabase.from('notifications').insert([{
+            user_id: transfer.metadata.seller_id,
+            type: 'payout_failed',
+            message: `Your payout for ${transfer.metadata.month_year} has failed. Please check your Stripe account and contact support if needed.`,
+            link: '/payouts',
+            read: false
+          }]);
+          
+          if (notificationError) {
+            console.error('Error creating payout failure notification:', notificationError);
+          }
+        } catch (notificationError) {
+          console.error('Error creating payout notification:', notificationError);
+        }
       }
     }
   } catch (error) {
