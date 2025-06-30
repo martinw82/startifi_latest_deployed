@@ -97,6 +97,8 @@ export const DeploymentsPage: React.FC = () => {
     switch (status) {
       case 'initializing':
         return 'Initializing';
+      case 'repo_created':
+        return 'Repository Created';
       case 'creating_repo':
         return 'Creating Repository';
       case 'pushing_code':

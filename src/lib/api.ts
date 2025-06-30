@@ -840,10 +840,290 @@ export class GitHubService {
 
 // Deployment Service for one-click deploy
 export class DeploymentService {
+  static async startDeployment(
+    userId: string, 
+    mvpId: string, 
+    repoName: string
+  ): Promise<{ 
+    success: boolean; 
+    message?: string; 
+    deployment_id?: string; 
+    github_auth_url?: string;
+  }> {
+    try {
+      if (!userId || !mvpId || !repoName) {
+        throw new Error('Missing required parameters');
+      }
+      
+      // First, get the MVP details to determine the storage path
+      const mvp = await APIService.getMVPById(mvpId);
+      if (!mvp) {
+        throw new Error('MVP not found');
+      }
+      
+      // Get the user profile to check GitHub username/connection
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('github_username')
+        .eq('id', userId)
+        .single();
+        
+      if (profileError || !profile) {
+        console.error('Error fetching user profile:', profileError);
+        throw new Error('Failed to fetch user profile');
+      }
+      
+      // Determine storage path for the MVP file
+      const storagePath = MVPUploadService.getMvpStoragePath(mvp);
+      if (!storagePath) {
+        throw new Error('Could not determine storage path for MVP file');
+      }
+      
+      // Sanitize repo name (in case it wasn't done earlier)
+      const sanitizedRepoName = repoName
+        .replace(/[^a-zA-Z0-9-_]/g, '-')
+        .replace(/^[^a-zA-Z0-9]/, 'r')
+        .toLowerCase();
+      
+      // Check if GitHub account is connected
+      if (!profile.github_username) {
+        // GitHub account not connected, initiate OAuth flow
+        console.log('GitHub account not connected, initiating OAuth flow');
+        
+        // Create deployment record with initializing status
+        const { data: deployment, error: deploymentError } = await supabase
+          .from('deployments')
+          .insert({
+            user_id: userId,
+            mvp_id: mvpId,
+            storage_path: storagePath,
+            repo_name: sanitizedRepoName,
+            status: 'initializing',
+          })
+          .select()
+          .single();
+          
+        if (deploymentError || !deployment) {
+          console.error('Error creating deployment record:', deploymentError);
+          throw new Error('Failed to create deployment record');
+        }
+        
+        // Initiate GitHub OAuth flow
+        const result = await DeploymentService.initiateGeneralGitHubAuth(userId);
+        
+        if (!result.success || !result.github_auth_url) {
+          throw new Error(result.message || 'Failed to initiate GitHub authentication');
+        }
+        
+        return {
+          success: true,
+          message: 'GitHub authentication required',
+          deployment_id: deployment.id,
+          github_auth_url: result.github_auth_url,
+        };
+      }
+      
+      // GitHub account is connected, proceed with repository creation
+      console.log('GitHub account connected, creating repository');
+      
+      // Create deployment record
+      const { data: deployment, error: deploymentError } = await supabase
+        .from('deployments')
+        .insert({
+          user_id: userId,
+          mvp_id: mvpId,
+          storage_path: storagePath,
+          repo_name: sanitizedRepoName,
+          repo_owner: profile.github_username,
+          status: 'initializing',
+        })
+        .select()
+        .single();
+        
+      if (deploymentError || !deployment) {
+        console.error('Error creating deployment record:', deploymentError);
+        throw new Error('Failed to create deployment record');
+      }
+      
+      // Create GitHub repository (but don't push code)
+      const repoResult = await DeploymentService.createGitHubRepository(
+        userId,
+        mvpId,
+        deployment.id,
+        sanitizedRepoName
+      );
+      
+      if (!repoResult.success) {
+        throw new Error(repoResult.message || 'Failed to create GitHub repository');
+      }
+      
+      // Update deployment with repo URL
+      await supabase
+        .from('deployments')
+        .update({
+          repo_url: repoResult.github_repo_url,
+          status: 'repo_created',
+        })
+        .eq('id', deployment.id);
+      
+      // Now trigger the Railway worker to handle the rest of the deployment
+      await DeploymentService.triggerWorker(deployment.id);
+      
+      return {
+        success: true,
+        message: 'Deployment initiated successfully',
+        deployment_id: deployment.id,
+      };
+      
+    } catch (error: any) {
+      console.error('Error starting deployment:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to start deployment',
+      };
+    }
+  }
+  
+  static async createGitHubRepository(
+    userId: string,
+    mvpId: string,
+    deploymentId: string,
+    repoName: string
+  ): Promise<{ 
+    success: boolean; 
+    message?: string;
+    github_repo_url?: string;
+  }> {
+    try {
+      // Call the modified Edge Function that only creates the repository
+      const { data, error } = await supabase.functions.invoke('create-buyer-repo-and-push-mvp', {
+        body: {
+          user_id: userId,
+          mvp_id: mvpId,
+          deployment_id: deploymentId,
+          repo_name: repoName,
+          create_only: true // New flag to indicate we only want to create the repo, not push code
+        }
+      });
+      
+      if (error) {
+        console.error('Error invoking create-buyer-repo-and-push-mvp function:', error);
+        return {
+          success: false,
+          message: error.message || 'Failed to create GitHub repository',
+        };
+      }
+      
+      return {
+        success: true,
+        message: 'GitHub repository created successfully',
+        github_repo_url: data.github_repo_url,
+      };
+      
+    } catch (error: any) {
+      console.error('Error creating GitHub repository:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to create GitHub repository',
+      };
+    }
+  }
+  
+  static async triggerWorker(deploymentId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      // Call the Railway deploy worker with the deployment ID
+      const response = await fetch('https://startifi-worker-production.up.railway.app/deploy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deployment_id: deploymentId,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Worker responded with error: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      
+      return {
+        success: true,
+        message: 'Deployment triggered successfully',
+      };
+      
+    } catch (error: any) {
+      console.error('Error triggering deploy worker:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to trigger deployment worker',
+      };
+    }
+  }
+  
+  static async getDeploymentStatus(deploymentId: string): Promise<{
+    status: string;
+    error_message?: string;
+    netlify_site_url?: string;
+  }> {
+    try {
+      const { data, error } = await supabase
+        .from('deployments')
+        .select('status, error_message, netlify_site_url')
+        .eq('id', deploymentId)
+        .single();
+        
+      if (error) {
+        throw error;
+      }
+      
+      return {
+        status: data.status,
+        error_message: data.error_message,
+        netlify_site_url: data.netlify_site_url,
+      };
+      
+    } catch (error: any) {
+      console.error('Error getting deployment status:', error);
+      return {
+        status: 'error',
+        error_message: error.message || 'Failed to get deployment status',
+      };
+    }
+  }
+
+  // Existing methods below
+  static async initiateGeneralGitHubAuth(userId: string): Promise<{ success: boolean; message?: string; github_auth_url?: string }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('initiate-buyer-github-oauth', {
+        body: {
+          user_id: userId,
+          // No mvp_id here since this is a general connection
+        },
+      });
+
+      if (error) {
+        console.error('Error initiating general GitHub OAuth:', error);
+        return { success: false, message: 'Failed to initiate GitHub authentication' };
+      }
+
+      return {
+        success: true,
+        message: 'GitHub authentication initiated successfully',
+        github_auth_url: data.github_auth_url,
+      };
+    } catch (error: any) {
+      console.error('Error in initiateGeneralGitHubAuth:', error);
+      return { success: false, message: error.message || 'Failed to initiate GitHub authentication' };
+    }
+  }
+
   /**
    * Start the deployment process by initiating GitHub OAuth
    */
-  static async startDeployment(userId: string, mvpId: string): Promise<{
+  static async startDeploymentOld(userId: string, mvpId: string): Promise<{
     success: boolean;
     message: string;
     deployment_id?: string;
@@ -1049,7 +1329,7 @@ export class DeploymentService {
   /**
    * Get deployment status
    */
-  static async getDeploymentStatus(deploymentId: string): Promise<{
+  static async getDeploymentStatusOld(deploymentId: string): Promise<{
     success: boolean;
     deployment?: any;
     message?: string;
@@ -1073,38 +1353,6 @@ export class DeploymentService {
     } catch (error: any) {
       console.error('Error in getDeploymentStatus:', error);
       return { success: false, message: error.message || 'Failed to fetch deployment status' };
-    }
-  }
-
-  /**
-   * Initiate GitHub OAuth flow for general account connection (not tied to a specific MVP)
-   */
-  static async initiateGeneralGitHubAuth(userId: string): Promise<{
-    success: boolean;
-    message: string;
-    github_auth_url?: string;
-  }> {
-    try {
-      const { data, error } = await supabase.functions.invoke('initiate-buyer-github-oauth', {
-        body: {
-          user_id: userId,
-          // No mvp_id here since this is a general connection
-        },
-      });
-
-      if (error) {
-        console.error('Error initiating general GitHub OAuth:', error);
-        return { success: false, message: 'Failed to initiate GitHub authentication' };
-      }
-
-      return {
-        success: true,
-        message: 'GitHub authentication initiated successfully',
-        github_auth_url: data.github_auth_url,
-      };
-    } catch (error: any) {
-      console.error('Error in initiateGeneralGitHubAuth:', error);
-      return { success: false, message: error.message || 'Failed to initiate GitHub authentication' };
     }
   }
 

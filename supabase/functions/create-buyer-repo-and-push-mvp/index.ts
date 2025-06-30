@@ -26,12 +26,12 @@ Deno.serve(async (req)=>{
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const requestBody = await req.json();
-    console.log('create-buyer-repo-and-push-mvp: Received request body:', requestBody);
-    const { user_id, mvp_id, deployment_id, repo_name } = requestBody;
-    if (!user_id || !mvp_id || !deployment_id || !repo_name) {
+    console.log('create-buyer-repo-and-push-mvp: Received request body:', JSON.stringify(requestBody));
+    const { user_id, mvp_id, deployment_id, repo_name, create_only = false } = requestBody;
+    if (!user_id || !deployment_id || !repo_name) {
       console.error('create-buyer-repo-and-push-mvp: Missing required fields in request body.');
       return new Response(JSON.stringify({
-        error: 'Missing required fields: user_id, mvp_id, deployment_id, repo_name'
+        error: 'Missing required fields: user_id, deployment_id, repo_name'
       }), {
         headers: {
           ...corsHeaders,
@@ -46,35 +46,38 @@ Deno.serve(async (req)=>{
       updated_at: new Date().toISOString()
     }).eq('id', deployment_id);
     console.log('create-buyer-repo-and-push-mvp: Deployment status updated to creating_repo.');
-    console.log(`create-buyer-repo-and-push-mvp: Verifying MVP access for user ${user_id} and MVP ${mvp_id}.`);
-    const { data: downloadData, error: downloadError } = await supabase.from('downloads').select('id').eq('user_id', user_id).eq('mvp_id', mvp_id).maybeSingle();
-    if (downloadError) {
-      console.error('create-buyer-repo-and-push-mvp: Error checking download records:', downloadError);
-      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to verify MVP access');
-      return new Response(JSON.stringify({
-        error: 'Failed to verify MVP access'
-      }), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 500
-      });
-    }
-    if (!downloadData) {
-      console.warn('create-buyer-repo-and-push-mvp: User has not purchased/downloaded this MVP.');
-      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'User has not purchased/downloaded this MVP');
-      return new Response(JSON.stringify({
-        error: 'User has not purchased/downloaded this MVP'
-      }), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 403
-      });
-    }
-    console.log('create-buyer-repo-and-push-mvp: MVP access verified.');
+    
+    // Only verify MVP access if mvp_id is provided and we're not in create_only mode
+    if (mvp_id && !create_only) {
+      console.log(`create-buyer-repo-and-push-mvp: Verifying MVP access for user ${user_id} and MVP ${mvp_id}.`);
+      const { data: downloadData, error: downloadError } = await supabase.from('downloads').select('id').eq('user_id', user_id).eq('mvp_id', mvp_id).maybeSingle();
+      if (downloadError) {
+        console.error('create-buyer-repo-and-push-mvp: Error checking download records:', downloadError);
+        await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to verify MVP access');
+        return new Response(JSON.stringify({
+          error: 'Failed to verify MVP access'
+        }), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          },
+          status: 500
+        });
+      }
+      if (!downloadData) {
+        console.warn('create-buyer-repo-and-push-mvp: User has not purchased/downloaded this MVP.');
+        await updateDeploymentStatus(supabase, deployment_id, 'failed', 'User has not purchased/downloaded this MVP');
+        return new Response(JSON.stringify({
+          error: 'User has not purchased/downloaded this MVP'
+        }), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          },
+          status: 403
+        });
+      }
+      console.log('create-buyer-repo-and-push-mvp: MVP access verified.');
     console.log(`create-buyer-repo-and-push-mvp: Fetching GitHub token for user ${user_id}.`);
     const { data: tokenData, error: tokenError } = await supabase.from('user_oauth_tokens').select('access_token').eq('user_id', user_id).eq('provider', 'github').maybeSingle();
     if (tokenError || !tokenData) {
@@ -170,9 +173,31 @@ Deno.serve(async (req)=>{
     console.log(`create-buyer-repo-and-push-mvp: Updating deployment with repo URL: ${repoUrl}`);
     await supabase.from('deployments').update({
       github_repo_url: repoUrl,
+      repo_owner: githubUsername,
       updated_at: new Date().toISOString()
     }).eq('id', deployment_id);
     console.log('create-buyer-repo-and-push-mvp: Deployment updated with repo URL.');
+
+    // If create_only flag is set, we stop here and return success
+    if (create_only) {
+      console.log('create-buyer-repo-and-push-mvp: create_only flag set, stopping after repo creation.');
+      await updateDeploymentStatus(supabase, deployment_id, 'repo_created', null);
+      return new Response(JSON.stringify({
+        success: true,
+        github_repo_url: repoUrl,
+        git_url: gitUrl,
+        repo_name: sanitizedRepoName,
+        github_username: githubUsername,
+        message: 'GitHub repository created successfully'
+      }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: 200
+      });
+    }
+
     console.log(`create-buyer-repo-and-push-mvp: Determining MVP file path for MVP ID: ${mvp_id}.`);
     let filePath;
     const slug = mvp.slug;
@@ -420,10 +445,12 @@ ${mvp.tech_stack.map((tech)=>`- ${tech}`).join('\n')}
     console.log('create-buyer-repo-and-push-mvp: Returning success response.');
     return new Response(JSON.stringify({
       success: true,
+      success: true,
       github_repo_url: repoUrl,
       git_url: gitUrl,
       repo_name: sanitizedRepoName,
-      github_username: githubUsername
+      github_username: githubUsername,
+      message: 'GitHub repository created and code pushed successfully'
     }), {
       headers: {
         ...corsHeaders,

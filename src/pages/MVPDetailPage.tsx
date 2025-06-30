@@ -121,7 +121,7 @@ export const MVPDetailPage: React.FC = () => {
     setDeploymentMessage('');
     
     try {
-      // Initialize repo name from MVP title
+      // Generate a suggested repo name from MVP title
       const suggestedRepoName = mvp.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric chars with hyphens
@@ -138,74 +138,92 @@ export const MVPDetailPage: React.FC = () => {
   
   const startDeployment = async () => {
     if (!user || !mvp || !repoName) {
-      setDeploymentMessage('Missing required information for deployment.');
+      setDeploymentMessage('Missing required information for deployment');
       return;
     }
     
     setIsDeploying(true);
     setShowDeployModal(false);
-    setDeploymentMessage('Initializing deployment process...');
+    setDeploymentMessage('Starting deployment process...');
     
     try {
-      // Step 1: Start the deployment process
-      const startResult = await DeploymentService.startDeployment(user.id, mvp.id);
+      // Get the MVP storage path
+      const mvpStoragePath = MVPUploadService.getMvpStoragePath(mvp);
       
-      if (!startResult.success) {
-        throw new Error(startResult.message);
+      // Start the deployment process with our updated flow
+      const result = await DeploymentService.startDeployment(user.id, mvp.id, repoName);
+      
+      if (!result.success) {
+        throw new Error(result.message);
       }
       
-      setDeploymentId(startResult.deployment_id || null);
+      setDeploymentId(result.deployment_id || null);
       
-      // If we need GitHub authentication, redirect to GitHub
-      if (startResult.github_auth_url) {
-        setDeploymentMessage('Redirecting to GitHub for authentication...');
-        setTimeout(() => {
-          window.location.href = startResult.github_auth_url as string;
+      if (result.github_auth_url) {
+        // We need to redirect to GitHub for authentication first
+        setDeploymentMessage('Redirecting to GitHub to authorize access...');
+          window.location.href = result.github_auth_url;
         }, 1000);
         return;
       }
       
-      // If we already have GitHub authentication, proceed to create repo
-      setDeploymentMessage('Creating GitHub repository...');
-      const repoResult = await DeploymentService.createRepoAndPushMVP(
-        user.id, 
-        mvp.id, 
-        startResult.deployment_id as string,
-        repoName
-      );
+      // If no GitHub auth URL, the deployment process has been initiated
+      setDeploymentMessage('Deployment process initiated! Your site will be built and deployed automatically.');
       
-      if (!repoResult.success) {
-        throw new Error(repoResult.message);
+      // Optionally poll for status updates
+      if (result.deployment_id) {
+        pollDeploymentStatus(result.deployment_id);
       }
-      
-      setDeploymentMessage('GitHub repository created. Initializing Netlify deployment...');
-      
-      // Step 3: Initiate Netlify authentication
-      const netlifyResult = await DeploymentService.initiateNetlifyAuth(
-        user.id,
-        startResult.deployment_id as string,
-        repoResult.github_repo_url as string
-      );
-      
-      if (!netlifyResult.success) {
-        throw new Error(netlifyResult.message);
-      }
-      
-      if (netlifyResult.netlify_auth_url) {
-        setDeploymentMessage('Redirecting to Netlify for authentication...');
-        setTimeout(() => {
-          window.location.href = netlifyResult.netlify_auth_url as string;
-        }, 1000);
-        return;
-      }
-      
-      throw new Error('No Netlify authentication URL provided.');
       
     } catch (error: any) {
       console.error('Deployment error:', error);
-      setDeploymentMessage(error.message || 'Failed to deploy MVP');
+      setDeploymentMessage(error.message || 'Failed to start deployment');
       setIsDeploying(false);
     }
+  };
+
+  // Function to poll for deployment status updates
+  const pollDeploymentStatus = (deploymentId: string) => {
+    const statusInterval = setInterval(async () => {
+      try {
+        const statusResult = await DeploymentService.getDeploymentStatus(deploymentId);
+        
+        // Update the status message based on the deployment status
+        switch(statusResult.status) {
+          case 'initializing':
+            setDeploymentMessage('Initializing deployment...');
+            break;
+          case 'repo_created':
+            setDeploymentMessage('GitHub repository created, preparing files...');
+            break;
+          case 'processing':
+            setDeploymentMessage('Processing files and setting up deployment...');
+            break;
+          case 'deployed':
+          case 'completed':
+            setDeploymentMessage(`Deployment completed! Your site is live at: ${statusResult.netlify_site_url || 'Loading URL...'}`);
+            clearInterval(statusInterval);
+            setIsDeploying(false);
+            break;
+          case 'error':
+          case 'failed':
+            setDeploymentMessage(`Deployment failed: ${statusResult.error_message || 'Unknown error'}`);
+            clearInterval(statusInterval);
+            setIsDeploying(false);
+            break;
+          default:
+            setDeploymentMessage(`Deployment status: ${statusResult.status}`);
+            break;
+        }
+      } catch (error) {
+        console.error('Error polling deployment status:', error);
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    // Clean up interval after 10 minutes (prevent indefinite polling)
+    setTimeout(() => {
+      clearInterval(statusInterval);
+    }, 10 * 60 * 1000);
   };
 
   // Helper function to sanitize filename
