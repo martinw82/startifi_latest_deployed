@@ -11,6 +11,12 @@ interface MVPFiltersProps {
   onCategoryChange: (category: string) => void;
   selectedTechStack: string[];
   onTechStackChange: (techStack: string[]) => void;
+  minPrice?: string | number;
+  onMinPriceChange: (minPrice: string) => void;
+  maxPrice?: string | number;
+  onMaxPriceChange: (maxPrice: string) => void;
+  selectedLicensingTerms: string;
+  onLicensingTermsChange: (terms: string) => void;
   sortBy: string;
   onSortChange: (sort: string) => void;
 }
@@ -51,6 +57,13 @@ const sortOptions = [
   { value: 'average_rating', label: 'Highest Rated' },
 ];
 
+const licensingOptions = [
+  { value: 'all', label: 'All Licenses' },
+  { value: 'standard_commercial', label: 'Standard Commercial' },
+  { value: 'premium_commercial', label: 'Premium Commercial' },
+  { value: 'personal_use_only', label: 'Personal Use Only' },
+];
+
 export const MVPFilters: React.FC<MVPFiltersProps> = ({
   searchQuery,
   onSearchChange,
@@ -58,6 +71,12 @@ export const MVPFilters: React.FC<MVPFiltersProps> = ({
   onCategoryChange,
   selectedTechStack,
   onTechStackChange,
+  minPrice = '',
+  onMinPriceChange,
+  maxPrice = '',
+  onMaxPriceChange,
+  selectedLicensingTerms,
+  onLicensingTermsChange,
   sortBy,
   onSortChange,
 }) => {
@@ -73,10 +92,18 @@ export const MVPFilters: React.FC<MVPFiltersProps> = ({
     onSearchChange('');
     onCategoryChange('All');
     onTechStackChange([]);
+    onMinPriceChange('');
+    onMaxPriceChange('');
+    onLicensingTermsChange('all');
     onSortChange('published_at');
   };
 
-  const hasActiveFilters = searchQuery || selectedCategory !== 'All' || selectedTechStack.length > 0;
+  const hasActiveFilters = searchQuery || 
+                          selectedCategory !== 'All' || 
+                          selectedTechStack.length > 0 || 
+                          minPrice !== '' || 
+                          maxPrice !== '' || 
+                          selectedLicensingTerms !== 'all';
 
   return (
     <GlassCard className="p-6 space-y-6">
@@ -123,6 +150,53 @@ export const MVPFilters: React.FC<MVPFiltersProps> = ({
           className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
         >
           {sortOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Price Range */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Price Range
+        </label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <input
+              type="number"
+              placeholder="Min Price"
+              min="0"
+              value={minPrice}
+              onChange={(e) => onMinPriceChange(e.target.value)}
+              className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <input
+              type="number"
+              placeholder="Max Price"
+              min="0"
+              value={maxPrice}
+              onChange={(e) => onMaxPriceChange(e.target.value)}
+              className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Licensing Terms */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Licensing Terms
+        </label>
+        <select
+          value={selectedLicensingTerms}
+          onChange={(e) => onLicensingTermsChange(e.target.value)}
+          className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
+        >
+          {licensingOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

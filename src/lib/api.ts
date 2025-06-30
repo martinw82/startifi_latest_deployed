@@ -10,6 +10,9 @@ export class APIService {
     category?: string;
     techStack?: string[];
     search?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    licensingTerms?: string;
     page?: number;
     limit?: number;
     sortBy?: 'download_count' | 'average_rating' | 'published_at';
@@ -31,8 +34,30 @@ export class APIService {
         query = query.overlaps('tech_stack', filters.techStack);
       }
 
+      // Price filters
+      if (filters?.minPrice !== undefined) {
+        query = query.gte('price', filters.minPrice);
+      }
+
+      if (filters?.maxPrice !== undefined) {
+        query = query.lte('price', filters.maxPrice);
+      }
+
+      // Licensing terms filter
+      if (filters?.licensingTerms) {
+        query = query.eq('licensing_terms', filters.licensingTerms);
+      }
+
       if (filters?.search) {
-        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,tagline.ilike.%${filters.search}%`);
+        // Enhanced search to include more fields
+        query = query.or(
+          `title.ilike.%${filters.search}%,` +
+          `description.ilike.%${filters.search}%,` +
+          `tagline.ilike.%${filters.search}%,` +
+          `changelog.ilike.%${filters.search}%,` +
+          `features.cs.{${filters.search}},` +
+          `tech_stack.cs.{${filters.search}}`
+        );
       }
 
       if (filters?.sortBy) {

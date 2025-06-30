@@ -16,12 +16,15 @@ export const MVPListingPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedTechStack, setSelectedTechStack] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState<string>('');
+  const [maxPrice, setMaxPrice] = useState<string>('');
+  const [selectedLicensingTerms, setSelectedLicensingTerms] = useState<string>('all');
   const [sortBy, setSortBy] = useState('published_at');
   const [currentPage, setCurrentPage] = useState(0);
 
   useEffect(() => {
     loadMVPs();
-  }, [searchQuery, selectedCategory, selectedTechStack, sortBy, currentPage]);
+  }, [searchQuery, selectedCategory, selectedTechStack, minPrice, maxPrice, selectedLicensingTerms, sortBy, currentPage]);
 
   const loadMVPs = async () => {
     try {
@@ -30,6 +33,9 @@ export const MVPListingPage: React.FC = () => {
         search: searchQuery || undefined,
         category: selectedCategory === 'All' ? undefined : selectedCategory,
         techStack: selectedTechStack.length > 0 ? selectedTechStack : undefined,
+        minPrice: minPrice ? Number(minPrice) : undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
+        licensingTerms: selectedLicensingTerms === 'all' ? undefined : selectedLicensingTerms,
         sortBy: sortBy as any,
         page: currentPage,
         limit: 20,
@@ -53,6 +59,21 @@ export const MVPListingPage: React.FC = () => {
 
   const handleFilterChange = () => {
     setCurrentPage(0); // Reset to first page when filters change
+  };
+
+  const handleMinPriceChange = (value: string) => {
+    setMinPrice(value);
+    handleFilterChange();
+  };
+
+  const handleMaxPriceChange = (value: string) => {
+    setMaxPrice(value);
+    handleFilterChange();
+  };
+
+  const handleLicensingTermsChange = (value: string) => {
+    setSelectedLicensingTerms(value);
+    handleFilterChange();
   };
 
   return (
@@ -98,6 +119,12 @@ export const MVPListingPage: React.FC = () => {
                   setSelectedTechStack(techStack);
                   handleFilterChange();
                 }}
+                minPrice={minPrice}
+                onMinPriceChange={handleMinPriceChange}
+                maxPrice={maxPrice}
+                onMaxPriceChange={handleMaxPriceChange}
+                selectedLicensingTerms={selectedLicensingTerms}
+                onLicensingTermsChange={handleLicensingTermsChange}
                 sortBy={sortBy}
                 onSortChange={(sort) => {
                   setSortBy(sort);
