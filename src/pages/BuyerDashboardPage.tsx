@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Download, Star, Calendar, CreditCard, Bell, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { Download, Star, Calendar, CreditCard, Bell, FileText, CheckCircle, AlertCircle, DollarSign } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
