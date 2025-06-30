@@ -37,7 +37,7 @@
   }
 
   .text-gradient {
-    @apply bg-gradient-to-r from-neon-cyan to-neon-violet bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 dark:from-neon-green dark:via-neon-cyan dark:to-neon-violet bg-clip-text text-transparent;
   }
 
   .animate-float {
@@ -159,7 +159,8 @@
 
 .dark .shimmer {
   background: linear-gradient(90deg, #1B1F33 25%, #252B42 37%, #1B1F33 63%);
-  background-size: 400px 100%;
+  background-size: 400px 100%; 
+  animation: shimmer 1.4s ease-in-out infinite;
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
