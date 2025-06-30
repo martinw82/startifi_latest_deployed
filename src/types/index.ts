@@ -190,8 +190,9 @@ export interface Dispute {
   custom_domain?: string;
   build_settings?: Record<string, any>;
   deploy_settings?: Record<string, any>;
-  created_at: string;
-  updated_at: string;
+  storage_path?: string;
+  repo_owner?: string;
+  repo_name?: string;
 }
 
 export interface OAuthToken {

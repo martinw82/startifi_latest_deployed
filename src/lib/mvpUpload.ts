@@ -371,7 +371,7 @@ export class MVPUploadService {
    * @param mvp The MVP object.
    * @returns The expected storage path.
    */
-  private static getMvpStoragePath(mvp: MVP): string {
+  public static getMvpStoragePath(mvp: MVP): string {
     const slug = mvp.slug;
     // Prioritize GitHub-synced path if last_synced_github_commit_sha is present
     if (mvp.last_synced_github_commit_sha) {
