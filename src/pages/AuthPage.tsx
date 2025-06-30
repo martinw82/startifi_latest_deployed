@@ -87,6 +87,33 @@ export const AuthPage: React.FC = () => {
       setLoading(false);
     }
   };
+  
+  const handleForgotPassword = async () => {
+    if (!formData.email) {
+      setErrors({ email: 'Please enter your email address to reset your password' });
+      return;
+    }
+    
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setErrors({ email: 'Please enter a valid email' });
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        redirectTo: `${window.location.origin}/settings?tab=security`,
+      });
+      
+      if (error) throw error;
+      
+      // Show success message
+      setErrors({ submit: '' });
+      alert('Password reset email sent! Please check your inbox.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen pt-24 pb-16 flex items-center justify-center">
@@ -306,9 +333,13 @@ export const AuthPage: React.FC = () => {
             
             {mode === 'signin' && (
               <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                <a href="/forgot-password" className="text-blue-600 dark:text-blue-400 hover:underline">
+                <button 
+                  type="button" 
+                  onClick={handleForgotPassword} 
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
                   Forgot your password?
-                </a>
+                </button>
               </p>
             )}
           </div>
