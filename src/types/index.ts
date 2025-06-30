@@ -204,3 +204,35 @@ export interface OAuthToken {
   created_at: string;
   updated_at: string;
 }
+
+// Newsletter management interfaces
+export interface NewsletterType {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  source?: string;
+  agreed_to_terms: boolean;
+  subscribed_at: string;
+  last_modified_at: string;
+  unsubscribed_at?: string;
+  categories?: string[];
+}
+
+export interface UserNewsletterSubscription {
+  id: string;
+  user_id: string;
+  newsletter_type_id: string;
+  subscribed_at: string;
+  unsubscribed_at?: string;
+  status: 'active' | 'inactive';
+  source?: string;
+  last_modified_at: string;
+  newsletter_type?: NewsletterType;
+}
