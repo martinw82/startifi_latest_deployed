@@ -909,6 +909,9 @@ export class DeploymentService {
     github_auth_url?: string;
   }> {
     try {
+      // Log the inputs for debugging
+      console.log(`Deployment inputs - userId: ${userId}, mvpId: ${mvpId}, repoName: ${repoName}`);
+
       // Step 1: Get the storage path for the MVP
       const mvp = await APIService.getMVPById(mvpId);
       if (!mvp) {

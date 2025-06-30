@@ -149,12 +149,17 @@ export const MVPDetailPage: React.FC = () => {
     setShowDeployModal(false);
     setDeploymentMessage('Starting deployment process...');
     
+    // Log deployment details for debugging
+    console.log(`Starting deployment - user: ${user?.id}, MVP: ${mvp?.id}, repo name: ${repoName}`);
+    
     try {
       // Get the MVP storage path
       const mvpStoragePath = MVPUploadService.getMvpStoragePath(mvp);
       
       // Start the deployment process with our updated flow
       const result = await DeploymentService.startDeployment(user.id, mvp.id, repoName);
+      
+      console.log('Deployment initiation result:', result);
       
       if (!result.success) {
         throw new Error(result.message);
@@ -165,6 +170,7 @@ export const MVPDetailPage: React.FC = () => {
       if (result.github_auth_url) {
         // We need to redirect to GitHub for authentication first
         setDeploymentMessage('Redirecting to GitHub to authorize access...');
+        console.log('Redirecting to GitHub auth URL:', result.github_auth_url);
         setTimeout(() => {
           window.location.href = result.github_auth_url;
         }, 1000);
