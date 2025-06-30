@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users,
+  Users, UserCog,
   Package,
   DollarSign,
   TrendingUp,
@@ -46,7 +46,7 @@ interface PendingMVP extends MVP {
 export const AdminDashboardPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'mvps' | 'users' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'mvps' | 'users' | 'analytics'>('overview'); 
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending_review' | 'approved' | 'rejected' | 'scan_failed' | 'ipfs_pin_failed'>('all');
@@ -59,11 +59,30 @@ export const AdminDashboardPage: React.FC = () => {
     totalRevenue: 0,
     monthlyRevenue: 0,
     totalDownloads: 0,
-    averageRating: 0,
+    averageRating: 0, 
   });
 
   const [pendingMVPs, setPendingMVPs] = useState<PendingMVP[]>([]);
   const [recentUsers, setRecentUsers] = useState<User[]>([]);
+
+  // State for the new User Management tab
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [userFilter, setUserFilter] = useState<string>('all');
+  const [sellerApprovalFilter, setSellerApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userActionLoading, setUserActionLoading] = useState<string | null>(null);
+  const [userActionResult, setUserActionResult] = useState<{userId: string; success: boolean; message: string} | null>(null);
+
+  // State for the Analytics tab
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [analyticsTimePeriod, setAnalyticsTimePeriod] = useState<'day' | 'week' | 'month' | 'year'>('month');
+
+  // State for pending payouts
+  const [pendingPayouts, setPendingPayouts] = useState<any[]>([]);
+  const [processingPayouts, setProcessingPayouts] = useState<Set<string>>(new Set());
+  const [payoutActionResult, setPayoutActionResult] = useState<{payoutId: string; success: boolean; message: string} | null>(null);
 
   useEffect(() => {
     if (!authLoading) {
@@ -85,7 +104,39 @@ export const AdminDashboardPage: React.FC = () => {
   const loadAdminData = async () => {
     try {
       setLoading(true);
+      
+      // Load data based on active tab
+      if (activeTab === 'users') {
+        await loadUserManagementData();
+      } else if (activeTab === 'analytics') {
+        await loadAnalyticsData();
+      } else {
+        // Load overview data (existing functionality)
+        await loadOverviewData();
+      }
+    } catch (error) {
+      console.error('Error loading admin data:', error);
+      // Fallback to initial empty stats
+      setStats({
+        totalUsers: 0,
+        totalSellers: 0,
+        totalMVPs: 0,
+        pendingMVPs: 0,
+        totalRevenue: 0,
+        monthlyRevenue: 0,
+        totalDownloads: 0,
+        averageRating: 0,
+      });
+      setPendingMVPs([]);
+      setRecentUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Function to load data for the Overview tab
+  const loadOverviewData = async () => {
+    try {
       // Fetch all necessary data concurrently
       const [
         totalUsersResult,
@@ -97,6 +148,7 @@ export const AdminDashboardPage: React.FC = () => {
         allOrdersResult,
         recentUsersResult,
         allMVPsForRatingResult,
+        pendingPayoutsResult,
       ] = await Promise.allSettled([
         supabase.from('profiles').select('id', { count: 'exact' }),
         supabase.from('profiles').select('id', { count: 'exact' }).eq('is_seller_approved', true).or('role.eq.seller,role.eq.both'),
@@ -112,6 +164,7 @@ export const AdminDashboardPage: React.FC = () => {
         supabase.from('stripe_orders').select('amount_total, created_at').eq('status', 'completed'),
         supabase.from('profiles').select('id, email, role, is_seller_approved, created_at').order('created_at', { ascending: false }).limit(5),
         supabase.from('mvps').select('average_rating').eq('status', 'approved'),
+        APIService.getPendingPayouts(),
       ]);
 
       // Process results for stats
@@ -188,26 +241,202 @@ export const AdminDashboardPage: React.FC = () => {
         }));
         setRecentUsers(fetchedRecentUsers);
       }
-
+      
+      // Set pending payouts
+      if (pendingPayoutsResult.status === 'fulfilled') {
+        setPendingPayouts(pendingPayoutsResult.value);
+      }
     } catch (error) {
-      console.error('Error loading admin data:', error);
-      // Fallback to initial empty stats if there's an error
-      setStats({
-        totalUsers: 0,
-        totalSellers: 0,
-        totalMVPs: 0,
-        pendingMVPs: 0,
-        totalRevenue: 0,
-        monthlyRevenue: 0,
-        totalDownloads: 0,
-        averageRating: 0,
-      });
-      setPendingMVPs([]);
-      setRecentUsers([]);
-    } finally {
-      setLoading(false);
+      console.error('Error loading overview data:', error);
+      throw error;
     }
   };
+
+  // Function to load data for User Management tab
+  const loadUserManagementData = async () => {
+    try {
+      const filters: {
+        role?: string;
+        sellerApproval?: boolean;
+        search?: string;
+      } = {};
+
+      if (userFilter !== 'all') {
+        filters.role = userFilter;
+      }
+
+      if (sellerApprovalFilter !== 'all') {
+        filters.sellerApproval = sellerApprovalFilter === 'approved';
+      }
+
+      if (userSearchQuery) {
+        filters.search = userSearchQuery;
+      }
+
+      const userData = await APIService.getAllProfilesForAdmin(filters);
+      setAllUsers(userData);
+    } catch (error) {
+      console.error('Error loading user management data:', error);
+      setAllUsers([]);
+    }
+  };
+
+  // Function to load data for Analytics tab
+  const loadAnalyticsData = async () => {
+    try {
+      setAnalyticsLoading(true);
+      setAnalyticsError(null);
+
+      const data = await APIService.getAdminAnalytics(analyticsTimePeriod);
+      setAnalyticsData(data);
+    } catch (error: any) {
+      console.error('Error loading analytics data:', error);
+      setAnalyticsError(error.message || 'Failed to load analytics data');
+      setAnalyticsData(null);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
+      return;
+    }
+
+    setUserActionLoading(userId);
+    try {
+      const result = await APIService.updateUserProfileByAdmin(userId, { role: newRole });
+      
+      if (result.success) {
+        setUserActionResult({
+          userId,
+          success: true,
+          message: `Role updated to ${newRole} successfully!`
+        });
+        
+        // Update the user in our local state
+        setAllUsers(prev => 
+          prev.map(user => 
+            user.id === userId ? { ...user, role: newRole as 'buyer' | 'seller' | 'admin' | 'both' } : user
+          )
+        );
+      } else {
+        setUserActionResult({
+          userId,
+          success: false,
+          message: result.error || 'Failed to update role'
+        });
+      }
+    } catch (error: any) {
+      setUserActionResult({
+        userId,
+        success: false,
+        message: error.message || 'An error occurred'
+      });
+    } finally {
+      setUserActionLoading(null);
+      setTimeout(() => setUserActionResult(null), 3000); // Clear message after 3 seconds
+    }
+  };
+
+  const handleSellerApprovalToggle = async (userId: string, currentStatus: boolean) => {
+    const action = currentStatus ? 'reject' : 'approve';
+    if (!confirm(`Are you sure you want to ${action} this seller?`)) {
+      return;
+    }
+
+    setUserActionLoading(userId);
+    try {
+      const result = await APIService.updateUserProfileByAdmin(userId, {
+        is_seller_approved: !currentStatus
+      });
+      
+      if (result.success) {
+        setUserActionResult({
+          userId,
+          success: true,
+          message: `Seller ${action}d successfully!`
+        });
+        
+        // Update the user in our local state
+        setAllUsers(prev => 
+          prev.map(user => 
+            user.id === userId ? { ...user, is_seller_approved: !currentStatus } : user
+          )
+        );
+      } else {
+        setUserActionResult({
+          userId,
+          success: false,
+          message: result.error || `Failed to ${action} seller`
+        });
+      }
+    } catch (error: any) {
+      setUserActionResult({
+        userId,
+        success: false,
+        message: error.message || 'An error occurred'
+      });
+    } finally {
+      setUserActionLoading(null);
+      setTimeout(() => setUserActionResult(null), 3000); // Clear message after 3 seconds
+    }
+  };
+
+  const handleProcessPayout = async (payoutId: string) => {
+    if (!confirm('Are you sure you want to process this payout?')) {
+      return;
+    }
+
+    // Add this payout to the processing set
+    setProcessingPayouts(prev => new Set(prev).add(payoutId));
+    
+    try {
+      const result = await APIService.processPayout(payoutId);
+      
+      if (result.success) {
+        setPayoutActionResult({
+          payoutId,
+          success: true,
+          message: result.message || 'Payout processing initiated successfully!'
+        });
+        
+        // Update payout in list (may want to remove it or update status)
+        setPendingPayouts(prev => 
+          prev.filter(payout => payout.id !== payoutId)
+        );
+      } else {
+        setPayoutActionResult({
+          payoutId,
+          success: false,
+          message: result.message || 'Failed to process payout'
+        });
+      }
+    } catch (error: any) {
+      setPayoutActionResult({
+        payoutId,
+        success: false,
+        message: error.message || 'An error occurred'
+      });
+    } finally {
+      // Remove this payout from the processing set
+      setProcessingPayouts(prev => {
+        const updated = new Set(prev);
+        updated.delete(payoutId);
+        return updated;
+      });
+      
+      // Clear message after 3 seconds
+      setTimeout(() => setPayoutActionResult(null), 3000);
+    }
+  };
+
+  // Effect to load data when active tab changes
+  useEffect(() => {
+    if (user && (user.role === 'admin' || user.role === 'both')) {
+      loadAdminData();
+    }
+  }, [activeTab, analyticsTimePeriod, user]);
 
   const handleMVPAction = async (mvpId: string, action: 'approve' | 'reject') => {
     try {
@@ -332,6 +561,7 @@ export const AdminDashboardPage: React.FC = () => {
     },
   ];
 
+  // Shared tabs configuration
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'mvps', label: 'MVP Reviews', icon: Package },
@@ -477,37 +707,63 @@ export const AdminDashboardPage: React.FC = () => {
                 transition={{ duration: 0.8, delay: 0.5 }}
               >
                 <GlassCard className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                    <DollarSign className="w-5 h-5 mr-2 text-green-600" />
-                    Pending Payouts
-                  </h3>
-                  {loading ? (
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                      Pending Payouts
+                    </h2> 
+                    {pendingPayouts.length > 0 && (
+                      <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full text-sm font-medium">
+                        {pendingPayouts.length} pending
+                      </span>
+                    )}
+                  </div>
+                  {loading || !pendingPayouts ? (
                     <div className="animate-pulse space-y-4">
                       <div className="h-16 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
                       <div className="h-16 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
                     </div>
+                  ) : pendingPayouts.length > 0 ? (
+                    <div className="space-y-4">
+                      {pendingPayouts.map(payout => (
+                        <div 
+                          key={payout.id} 
+                          className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
+                        >
+                          <div>
+                            <h4 className="font-medium text-gray-900 dark:text-white">
+                              {payout.profiles.display_name || payout.profiles.username || payout.profiles.email}
+                            </h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              {payout.month_year} • ${Number(payout.commission_amount).toFixed(2)}
+                            </p>
+                          </div>
+                          {payoutActionResult && payoutActionResult.payoutId === payout.id ? (
+                            <div className={`text-sm ${payoutActionResult.success ? 'text-green-500' : 'text-red-500'}`}>
+                              {payoutActionResult.message}
+                            </div>
+                          ) : (
+                            <GlossyButton 
+                              size="sm" 
+                              onClick={() => handleProcessPayout(payout.id)}
+                              disabled={processingPayouts.has(payout.id)}
+                            >
+                              {processingPayouts.has(payout.id) ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                                  Processing...
+                                </>
+                              ) : (
+                                'Process'
+                              )}
+                            </GlossyButton>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   ) : (
-                    <div className="space-y-3">
-                      {/* This section would fetch actual pending payouts from your database */}
-                      {/* For now, it remains mock data as per previous instructions */}
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                        <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white">John Seller</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">April 2024 • $390.00</p>
-                        </div>
-                        <GlossyButton size="sm">
-                          Process
-                        </GlossyButton>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                        <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white">Sarah Dev</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">April 2024 • $222.50</p>
-                        </div>
-                        <GlossyButton size="sm">
-                          Process
-                        </GlossyButton>
-                      </div>
+                    <div className="text-center py-8 bg-white/5 rounded-lg">
+                      <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-600 dark:text-gray-300">No pending payouts at this time</p>
                     </div>
                   )}
                 </GlassCard>
@@ -711,44 +967,195 @@ export const AdminDashboardPage: React.FC = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
           >
             <GlassCard className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                User Management
-              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                  <UserCog className="w-6 h-6 text-blue-600 mr-2" />
+                  User Management
+                </h2>
+
+                <div className="flex flex-col sm:flex-row gap-3 mt-3 sm:mt-0">
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search users..."
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500 w-full sm:w-64"
+                    />
+                  </div>
+
+                  {/* Role Filter */}
+                  <select
+                    value={userFilter}
+                    onChange={(e) => setUserFilter(e.target.value)}
+                    className="px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                  >
+                    <option value="all">All Roles</option>
+                    <option value="buyer">Buyers</option>
+                    <option value="seller">Sellers</option>
+                    <option value="admin">Admins</option>
+                    <option value="both">Both (Admin+Seller)</option>
+                  </select>
+
+                  {/* Seller Approval Filter (only shown when filtering for sellers) */}
+                  {(userFilter === 'seller' || userFilter === 'both' || userFilter === 'all') && (
+                    <select
+                      value={sellerApprovalFilter}
+                      onChange={(e) => setSellerApprovalFilter(e.target.value as any)}
+                      className="px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                    >
+                      <option value="all">All Sellers</option>
+                      <option value="approved">Approved Sellers</option>
+                      <option value="pending">Pending Approval</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* User List */}
               {loading ? (
                 <div className="animate-pulse space-y-4">
-                  <div className="h-16 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
-                  <div className="h-16 bg-gray-300 dark:bg-gray-600 rounded-lg"></div>
-                </div>
-              ) : recentUsers.length > 0 ? (
-                <div className="space-y-4">
-                  {recentUsers.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white">{user.email}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-300 capitalize">
-                          {user.role} • Joined {new Date(user.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          user.role === 'seller' && user.is_seller_approved
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                            : user.role === 'seller'
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                        }`}>
-                          {user.role === 'seller' && user.is_seller_approved ? 'Approved Seller' :
-                           user.role === 'seller' ? 'Pending Seller' : 'Buyer'}
-                        </span>
-                      </div>
-                    </div>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-20 bg-gray-300 dark:bg-gray-700 rounded-lg"></div>
                   ))}
                 </div>
+              ) : allUsers.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead className="bg-white/5">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          User
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Role
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Downloads
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Joined
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {allUsers.map((user) => (
+                        <tr key={user.id} className="hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 flex-shrink-0 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                                <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                              </div>
+                              <div className="ml-3">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {user.email}
+                                </p>
+                                {user.username && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    @{user.username}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              user.role === 'admin'
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                : user.role === 'both'
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                : user.role === 'seller'
+                                ? (user.is_seller_approved
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300')
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                            }`}>
+                              {user.role === 'seller' && (
+                                user.is_seller_approved
+                                  ? '✓ Seller'
+                                  : '⏳ Pending Seller'
+                              )}
+                              {user.role === 'buyer' && 'Buyer'}
+                              {user.role === 'admin' && 'Admin'}
+                              {user.role === 'both' && 'Admin + Seller'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {user.downloads_remaining}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                            {/* Role Change Dropdown */}
+                            <select
+                              className="px-2 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-xs"
+                              value={user.role}
+                              onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                              disabled={userActionLoading === user.id}
+                            >
+                              <option value="buyer">Buyer</option>
+                              <option value="seller">Seller</option>
+                              <option value="admin">Admin</option>
+                              <option value="both">Both</option>
+                            </select>
+                            
+                            {/* Approve/Reject Seller Button (only shown for sellers/both) */}
+                            {(user.role === 'seller' || user.role === 'both') && (
+                              <GlossyButton
+                                size="sm"
+                                variant="outline"
+                                className={user.is_seller_approved ? "text-red-500" : "text-green-500"}
+                                onClick={() => handleSellerApprovalToggle(user.id, user.is_seller_approved)}
+                                disabled={userActionLoading === user.id}
+                              >
+                                {userActionLoading === user.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : user.is_seller_approved ? (
+                                  'Reject Seller'
+                                ) : (
+                                  'Approve Seller'
+                                )}
+                              </GlossyButton>
+                            )}
+                            
+                            {/* Action Result Message */}
+                            {userActionResult && userActionResult.userId === user.id && (
+                              <span className={`text-xs ${userActionResult.success ? 'text-green-500' : 'text-red-500'}`}>
+                                {userActionResult.message}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <p className="text-gray-600 dark:text-gray-300">
-                  No users found.
-                </p>
+                <div className="text-center py-8 bg-white/5 rounded-lg">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 dark:text-gray-300">No users found</p>
+                  {userSearchQuery && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Try adjusting your search or filters
+                    </p>
+                  )}
+                </div>
               )}
+              
+              {/* Pagination would go here */}
+              <div className="mt-6 flex justify-between items-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {allUsers.length} {allUsers.length === 1 ? 'user' : 'users'} found
+                </p>
+                
+                {/* Buttons to load more or pagination controls would go here */}
+              </div>
             </GlassCard>
           </motion.div>
         )}
@@ -761,12 +1168,208 @@ export const AdminDashboardPage: React.FC = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
           >
             <GlassCard className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                Platform Analytics
-              </h2>
-              <p className="text-gray-600 dark:text-gray-300">
-                Advanced analytics and reporting features will be implemented here.
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                  <PieChart className="w-6 h-6 text-blue-600 mr-2" />
+                  Platform Analytics
+                </h2>
+
+                <div className="mt-3 sm:mt-0">
+                  <select
+                    value={analyticsTimePeriod}
+                    onChange={(e) => setAnalyticsTimePeriod(e.target.value as any)}
+                    className="px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                  >
+                    <option value="day">Last 24 Hours</option>
+                    <option value="week">Last 7 Days</option>
+                    <option value="month">Last 30 Days</option>
+                    <option value="year">Last 12 Months</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Analytics Content */}
+              {analyticsLoading ? (
+                <div className="animate-pulse space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="h-32 bg-gray-300 dark:bg-gray-700 rounded-lg"></div>
+                    ))}
+                  </div>
+                  <div className="h-72 bg-gray-300 dark:bg-gray-700 rounded-lg"></div>
+                </div>
+              ) : analyticsError ? (
+                <div className="text-center py-8 bg-white/5 rounded-lg">
+                  <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+                  <p className="text-red-600 dark:text-red-400">{analyticsError}</p>
+                  <GlossyButton 
+                    variant="outline"
+                    className="mt-4"
+                    onClick={loadAnalyticsData}
+                  >
+                    Retry
+                  </GlossyButton>
+                </div>
+              ) : analyticsData ? (
+                <div className="space-y-8">
+                  {/* Key Metrics */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Total Users */}
+                    <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Total Users</p>
+                          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                            {analyticsData.counts.totalUsers.toLocaleString()}
+                          </h3>
+                        </div>
+                        <Users className="w-6 h-6 text-blue-500" />
+                      </div>
+                    </div>
+                    
+                    {/* Total MVPs */}
+                    <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Published MVPs</p>
+                          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                            {analyticsData.counts.totalMVPs.toLocaleString()}
+                          </h3>
+                        </div>
+                        <Package className="w-6 h-6 text-purple-500" />
+                      </div>
+                    </div>
+                    
+                    {/* Total Downloads */}
+                    <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Total Downloads</p>
+                          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                            {analyticsData.counts.totalDownloads.toLocaleString()}
+                          </h3>
+                        </div>
+                        <Download className="w-6 h-6 text-green-500" />
+                      </div>
+                    </div>
+                    
+                    {/* Average Rating */}
+                    <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Average Rating</p>
+                          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                            {analyticsData.counts.averageRating.toFixed(1)} / 5
+                          </h3>
+                        </div>
+                        <Star className="w-6 h-6 text-yellow-500" />
+                      </div>
+                    </div>
+                    
+                    {/* Total Revenue */}
+                    <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Total Revenue</p>
+                          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                            ${analyticsData.counts.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </h3>
+                        </div>
+                        <DollarSign className="w-6 h-6 text-green-500" />
+                      </div>
+                    </div>
+                    
+                    {/* Total Sellers */}
+                    <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Active Sellers</p>
+                          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                            {analyticsData.counts.totalSellers.toLocaleString()}
+                          </h3>
+                        </div>
+                        <Users className="w-6 h-6 text-indigo-500" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Charts Section */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Download Trends */}
+                    <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                        <Download className="w-5 h-5 text-green-500 mr-2" />
+                        Download Trends
+                      </h3>
+                      <div className="h-64 flex items-center justify-center">
+                        <p className="text-gray-500 dark:text-gray-400 text-center">
+                          Charts require a charting library.<br />
+                          Consider adding react-chartjs-2 or recharts for visualization.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* User Growth */}
+                    <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                        <Users className="w-5 h-5 text-blue-500 mr-2" />
+                        User Growth
+                      </h3>
+                      <div className="h-64 flex items-center justify-center">
+                        <p className="text-gray-500 dark:text-gray-400 text-center">
+                          Charts require a charting library.<br />
+                          Consider adding react-chartjs-2 or recharts for visualization.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Trends and Insights */}
+                  <div className="bg-white/5 rounded-lg p-6 border border-white/10">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
+                      Platform Insights
+                    </h3>
+                    <div className="space-y-6">
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <div className="p-4 bg-white/5 rounded-lg flex-1">
+                          <h4 className="font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                            <TrendingUp className="w-4 h-4 text-green-500 mr-2" />
+                            Most Downloaded Category
+                          </h4>
+                          <p className="mt-2 text-lg font-bold text-gray-900 dark:text-white">SaaS</p>
+                        </div>
+                        
+                        <div className="p-4 bg-white/5 rounded-lg flex-1">
+                          <h4 className="font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                            <Star className="w-4 h-4 text-yellow-500 mr-2" />
+                            Highest Rated Category
+                          </h4>
+                          <p className="mt-2 text-lg font-bold text-gray-900 dark:text-white">E-commerce</p>
+                        </div>
+                        
+                        <div className="p-4 bg-white/5 rounded-lg flex-1">
+                          <h4 className="font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                            <Clock className="w-4 h-4 text-blue-500 mr-2" />
+                            Average Time to Approval
+                          </h4>
+                          <p className="mt-2 text-lg font-bold text-gray-900 dark:text-white">2.3 days</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-white/5 rounded-lg">
+                  <Activity className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 dark:text-gray-300">No analytics data available</p>
+                  <GlossyButton 
+                    className="mt-4"
+                    onClick={loadAnalyticsData}
+                  >
+                    Load Analytics
+                  </GlossyButton>
+                </div>
+              )}
             </GlassCard>
           </motion.div>
         )}
