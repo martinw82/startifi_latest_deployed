@@ -1,46 +1,61 @@
-// deploy-worker/index.js
+// railway-startifi-worker-main/index.js
 import express from "express";
-import fetch from "node-fetch"; // Explicitly import node-fetch for older Node.js versions or if global fetch is not desired
+import fetch from "node-fetch";
 import AdmZip from "adm-zip";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
-import { createClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"; // Renamed to avoid conflict
 import dotenv from "dotenv";
 import cors from "cors";
+// import { unrar } from 'node-unrar-js'; // Example if using a JS library for RAR
 
-// Load environment variables from .env file
 dotenv.config();
 
 const app = express();
-
-// Apply CORS middleware
-// For production, replace '*' with your specific frontend origin(s)
 app.use(cors({
-  origin: '*', // Or specify your frontend URL: 'https://your-frontend-domain.com'
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-// Parse JSON request bodies
 app.use(express.json());
 
-// Initialize Supabase client
-const supabase = createClient(
+const supabase = createSupabaseClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Consistent status update helper
+async function updateDeploymentStatus(deploymentId, status, errorMessage = null) {
+  const updateData = {
+    status,
+    updated_at: new Date().toISOString(),
+  };
+  if (errorMessage) {
+    updateData.error_message = errorMessage;
+  }
+  console.log(`Worker updating deployment ${deploymentId} to status: ${status}, error: ${errorMessage || 'null'}`);
+  try {
+    const { error } = await supabase.from("deployments").update(updateData).eq("id", deploymentId);
+    if (error) {
+      console.error(`Worker failed to update Supabase status for ${deploymentId} to ${status}:`, error);
+    }
+  } catch (e) {
+    console.error(`Worker: Catastrophic error during Supabase status update for ${deploymentId}:`, e);
+  }
+}
+
 app.post("/deploy", async (req, res) => {
   const { deployment_id } = req.body;
 
-  // Validate deployment_id
   if (!deployment_id) {
-    console.error("Deployment ID is missing from request body.");
+    console.error("Worker: Deployment ID missing from request body.");
     return res.status(400).json({ error: "Deployment ID is required" });
   }
 
-  // Fetch deployment metadata from Supabase
+  await updateDeploymentStatus(deployment_id, 'worker_started', null);
+
+  // Fetch deployment metadata (includes storage_path, mvp_id, user_id, git_clone_url, repo_name, repo_owner)
   let deployment;
   try {
     const { data, error } = await supabase
@@ -50,160 +65,214 @@ app.post("/deploy", async (req, res) => {
       .single();
 
     if (error || !data) {
-      console.error(`Deployment ${deployment_id} not found:`, error);
+      console.error(`Worker: Deployment ${deployment_id} not found in Supabase.`, error);
+      await updateDeploymentStatus(deployment_id, "failed", "Deployment record not found by worker.");
       return res.status(404).json({ error: "Deployment not found" });
     }
     deployment = data;
+    if (!deployment.storage_path || !deployment.mvp_id || !deployment.user_id || !deployment.git_clone_url || !deployment.repo_name || !deployment.repo_owner) {
+      const missingDetails = `Missing one or more critical fields in deployment record: storage_path, mvp_id, user_id, git_clone_url, repo_name, repo_owner.`;
+      console.error(`Worker: ${missingDetails} for deployment ${deployment_id}`);
+      await updateDeploymentStatus(deployment_id, "failed", missingDetails);
+      return res.status(400).json({ error: missingDetails });
+    }
   } catch (dbError) {
-    console.error(`Error fetching deployment ${deployment_id} from Supabase:`, dbError);
+    console.error(`Worker: Error fetching deployment ${deployment_id} from Supabase:`, dbError);
+    await updateDeploymentStatus(deployment_id, "failed", "Worker failed to fetch deployment details.");
     return res.status(500).json({ error: "Failed to fetch deployment details" });
   }
 
-  // Define temporary directories
-  // Use deployment ID for unique temp dir to avoid conflicts
-  const tmpDir = path.join("./tmp", deployment.id); 
+  // Fetch MVP metadata (build_command, publish_directory)
+  let mvpMetadata;
+  try {
+    const { data, error } = await supabase
+      .from("mvps")
+      .select("build_command, publish_directory")
+      .eq("id", deployment.mvp_id)
+      .single();
+    if (error || !data) {
+      console.warn(`Worker: Could not fetch MVP metadata (build_command, publish_directory) for mvp_id ${deployment.mvp_id}. Will use defaults.`, error);
+      mvpMetadata = {}; // Use defaults
+    } else {
+      mvpMetadata = data;
+    }
+  } catch (mvpDbError) {
+    console.warn(`Worker: Error fetching MVP metadata for mvp_id ${deployment.mvp_id}. Will use defaults.`, mvpDbError);
+    mvpMetadata = {}; // Use defaults
+  }
+
+  const tmpDir = path.join("./tmp", deployment_id); // Use deployment_id for unique temp dir
   const repoDir = path.join(tmpDir, deployment.repo_name);
-  const zipPath = path.join(tmpDir, `${deployment.repo_name}.zip`);
+  const archiveFileName = deployment.storage_path.split('/').pop(); // Get filename from storage_path
+  const archivePath = path.join(tmpDir, archiveFileName);
   
   try {
-    // Update status to "processing"
-    await supabase.from("deployments").update({ status: "processing" }).eq("id", deployment.id);
-    console.log(`Deployment ${deployment_id} status updated to processing.`);
+    await updateDeploymentStatus(deployment_id, 'worker_processing_files', null);
 
     // 1. Fetch GitHub token for the user
     const { data: tokenData, error: tokenError } = await supabase
       .from('user_oauth_tokens')
       .select('access_token')
-      .eq('user_id', deployment.user_id) // Use user_id from deployment
+      .eq('user_id', deployment.user_id)
       .eq('provider', 'github')
       .maybeSingle();
 
-    if (tokenError || !tokenData || !tokenData.access_token) {
-      const errorMessage = "GitHub token not found for user. Please connect your GitHub account.";
-      console.error(errorMessage, tokenError);
-      await supabase.from("deployments").update({ status: "failed", error_message: errorMessage }).eq("id", deployment_id);
-      return res.status(400).json({ error: errorMessage });
+    if (tokenError || !tokenData?.access_token) {
+      const errMsg = "Worker: GitHub token not found for user.";
+      console.error(errMsg, tokenError);
+      await updateDeploymentStatus(deployment_id, "failed", errMsg);
+      return res.status(400).json({ error: errMsg });
     }
     const githubToken = tokenData.access_token;
-    console.log("GitHub token fetched successfully.");
+    console.log(`Worker: GitHub token fetched for deployment ${deployment_id}.`);
 
-    const repoOwner = deployment.repo_owner;
-    const repoName = deployment.repo_name;
-    const repoUrl = deployment.repo_url;
-    const branch = deployment.branch || "main";
-
-    if (!repoOwner || !repoName || !repoUrl) {
-      const errorMessage = "Repository details (owner, name, url) missing in deployment record.";
-      console.error(errorMessage);
-      await supabase.from("deployments").update({ status: "failed", error_message: errorMessage }).eq("id", deployment_id);
-      return res.status(400).json({ error: errorMessage });
+    // Ensure temp directory exists and is clean
+    if (fs.existsSync(tmpDir)) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
-
-    // Ensure temp directory exists
-    // fs.mkdirSync with recursive: true creates parent directories if they don't exist. [3, 9, 11, 12, 14]
     fs.mkdirSync(tmpDir, { recursive: true });
-    console.log(`Temporary directory created: ${tmpDir}`);
+    console.log(`Worker: Temporary directory created: ${tmpDir}`);
 
-    // 2. Clone the empty GitHub repository
-    // Using GIT_ASKPASS or embedding token in URL is less secure.
-    // A more secure way is to use GIT_USERNAME and GIT_PASSWORD environment variables.
-    // For simplicity and common usage in CI/CD, embedding in URL is often seen, but be aware of risks.
-    // execSync(`git clone https://oauth2:${githubToken}@github.com/${repoOwner}/${repoName}.git ${repoDir}`, { stdio: 'inherit' });
-    // Alternative using GIT_USERNAME/GIT_PASSWORD for better security (requires git to be configured to use these)
-    // Or, if using SSH keys, ensure the worker environment has access to the key.
+    // 2. Clone the GitHub repository (should be empty or have an initial commit)
+    const cloneUrl = deployment.git_clone_url.replace('https://', `https://oauth2:${githubToken}@`);
     try {
-      execSync(`git clone ${repoUrl} ${repoDir}`, { 
-        stdio: 'inherit', 
-        env: { ...process.env, GIT_USERNAME: 'oauth2', GIT_PASSWORD: githubToken } 
-      });
-      execSync(`git config user.name "AutoDeployBot"`, { cwd: repoDir });
-      execSync(`git config user.email "bot@example.com"`, { cwd: repoDir });
-      console.log(`Repository ${repoOwner}/${repoName} cloned into ${repoDir}`);
+      console.log(`Worker: Cloning ${deployment.git_clone_url} into ${repoDir} for deployment ${deployment_id}`);
+      execSync(`git clone --depth 1 ${cloneUrl} ${repoDir}`, { stdio: 'pipe' }); // Use pipe to hide token from logs
+      execSync(`git config user.name "StartiFi Deploy Bot"`, { cwd: repoDir });
+      execSync(`git config user.email "deploy-bot@startifi.com"`, { cwd: repoDir });
+      console.log(`Worker: Repository cloned successfully for deployment ${deployment_id}.`);
     } catch (gitCloneError) {
-      const errorMessage = `Failed to clone repository: ${gitCloneError.message}`;
-      console.error(errorMessage, gitCloneError);
-      await supabase.from("deployments").update({ status: "failed", error_message: errorMessage }).eq("id", deployment_id);
-      return res.status(500).json({ error: errorMessage });
+      const errMsg = `Worker: Failed to clone repository: ${gitCloneError.message}`;
+      console.error(errMsg, gitCloneError.stderr?.toString());
+      await updateDeploymentStatus(deployment_id, "failed", `Worker: Git clone error. ${gitCloneError.message}`);
+      return res.status(500).json({ error: errMsg });
     }
 
-    // 3. Download the MVP ZIP from Supabase Storage
-    // Ensure SUPABASE_BUCKET is defined in your .env
+    // 3. Download the MVP archive from Supabase Storage
     const supabaseBucket = process.env.SUPABASE_BUCKET;
     if (!supabaseBucket) {
-      const errorMessage = "SUPABASE_BUCKET environment variable is not set.";
-      console.error(errorMessage);
-      await supabase.from("deployments").update({ status: "failed", error_message: errorMessage }).eq("id", deployment_id);
-      return res.status(500).json({ error: errorMessage });
+      const errMsg = "Worker: SUPABASE_BUCKET env var not set.";
+      console.error(errMsg);
+      await updateDeploymentStatus(deployment_id, "failed", errMsg);
+      return res.status(500).json({ error: errMsg });
     }
 
+    console.log(`Worker: Downloading MVP archive from Supabase bucket '${supabaseBucket}', path '${deployment.storage_path}' for deployment ${deployment_id}`);
     const { data: signedUrlData, error: signedUrlErr } = await supabase.storage
       .from(supabaseBucket)
-      .createSignedUrl(deployment.storage_path, 3600); // Use storage_path from deployment
+      .createSignedUrl(deployment.storage_path, 3600); // 1 hour expiry
 
-    if (signedUrlErr || !signedUrlData || !signedUrlData.signedUrl) {
-      const errorMessage = `Failed to get signed URL for MVP file: ${signedUrlErr?.message || 'Unknown error'}`;
-      console.error(errorMessage, signedUrlErr);
-      await supabase.from("deployments").update({ status: "failed", error_message: errorMessage }).eq("id", deployment_id);
-      return res.status(500).json({ error: errorMessage });
+    if (signedUrlErr || !signedUrlData?.signedUrl) {
+      const errMsg = `Worker: Failed to get signed URL for MVP file: ${signedUrlErr?.message || 'No signed URL'}`;
+      console.error(errMsg, signedUrlErr);
+      await updateDeploymentStatus(deployment_id, "failed", errMsg);
+      return res.status(500).json({ error: errMsg });
     }
 
-    console.log(`Downloading MVP ZIP from ${signedUrlData.signedUrl}`);
-    const zipResponse = await fetch(signedUrlData.signedUrl);
-    if (!zipResponse.ok) {
-      const errorMessage = `Failed to download ZIP: ${zipResponse.statusText}`;
-      console.error(errorMessage);
-      await supabase.from("deployments").update({ status: "failed", error_message: errorMessage }).eq("id", deployment_id);
-      return res.status(500).json({ error: errorMessage });
+    const archiveResponse = await fetch(signedUrlData.signedUrl);
+    if (!archiveResponse.ok) {
+      const errMsg = `Worker: Failed to download archive: ${archiveResponse.statusText}`;
+      console.error(errMsg);
+      await updateDeploymentStatus(deployment_id, "failed", errMsg);
+      return res.status(500).json({ error: errMsg });
     }
-
-    const fileStream = fs.createWriteStream(zipPath);
+    const fileStream = fs.createWriteStream(archivePath);
     await new Promise((resolve, reject) => {
-      zipResponse.body.pipe(fileStream);
-      zipResponse.body.on("error", reject);
+      archiveResponse.body.pipe(fileStream);
+      archiveResponse.body.on("error", reject);
       fileStream.on("finish", resolve);
     });
-    console.log(`MVP ZIP downloaded to ${zipPath}`);
+    console.log(`Worker: MVP archive downloaded to ${archivePath} for deployment ${deployment_id}.`);
 
-    // 4. Extract the ZIP contents into the cloned repository
-    console.log(`Extracting ZIP to ${repoDir}`);
-    // AdmZip constructor takes the path to the zip file [4, 5, 10]
-    const zip = new AdmZip(zipPath); 
-    // extractAllTo extracts all files to the target path, true means overwrite existing [1, 2, 10]
-    zip.extractAllTo(repoDir, true); 
-    console.log("ZIP extracted.");
-
-    // 5. Add, commit, and push the extracted files
+    // 4. Extract the archive contents into the cloned repository
+    console.log(`Worker: Extracting archive ${archivePath} to ${repoDir} for deployment ${deployment_id}`);
     try {
-      execSync(`git add .`, { cwd: repoDir });
-      execSync(`git commit -m "Initial MVP code push"`, { cwd: repoDir });
-      execSync(`git push origin ${branch}`, { cwd: repoDir });
-      console.log("Code pushed to GitHub.");
-    } catch (gitPushError) {
-      const errorMessage = `Failed to push code to GitHub: ${gitPushError.message}`;
-      console.error(errorMessage, gitPushError);
-      await supabase.from("deployments").update({ status: "failed", error_message: errorMessage }).eq("id", deployment_id);
-      return res.status(500).json({ error: errorMessage });
+      if (archiveFileName.endsWith('.zip')) {
+        const zip = new AdmZip(archivePath);
+        zip.extractAllTo(repoDir, true); // true to overwrite
+      } else if (archiveFileName.endsWith('.tar.gz')) {
+        execSync(`tar -xzf "${archivePath}" -C "${repoDir}"`, { stdio: 'pipe' });
+      } else if (archiveFileName.endsWith('.rar')) {
+        // IMPORTANT: Ensure 'unrar' CLI tool is available in the Railway environment.
+        // Or, use a Node.js library like 'node-unrar-js' (would require adding it as a dependency and different code).
+        // Example with CLI:
+        try {
+            execSync(`unrar x -o+ "${archivePath}" "${repoDir}"`, { stdio: 'pipe' }); // -o+ to overwrite
+        } catch (unrarError) {
+            console.error("Worker: Failed to extract RAR. 'unrar' CLI might be missing or archive is problematic.", unrarError);
+            throw new Error("Failed to extract RAR archive. Ensure 'unrar' tool is available or use a supported archive type.");
+        }
+      } else {
+        throw new Error(`Unsupported archive type: ${archiveFileName}`);
+      }
+      console.log(`Worker: Archive extracted for deployment ${deployment_id}.`);
+    } catch (extractError) {
+      const errMsg = `Worker: Failed to extract archive: ${extractError.message}`;
+      console.error(errMsg, extractError);
+      await updateDeploymentStatus(deployment_id, "failed", errMsg);
+      return res.status(500).json({ error: errMsg });
     }
 
-    // Update status to "completed"
-    await supabase.from("deployments").update({ status: "completed" }).eq("id", deployment.id);
-    console.log(`Deployment ${deployment_id} status updated to completed.`);
-    res.json({ success: true, message: "Deployment completed successfully" });
+    // Delete the downloaded archive file - DO NOT COMMIT IT
+    fs.unlinkSync(archivePath);
+    console.log(`Worker: Deleted archive file ${archivePath} for deployment ${deployment_id}.`);
+
+    // 5. Create netlify.toml
+    const buildCommand = mvpMetadata.build_command || "npm run build"; // Default
+    const publishDir = mvpMetadata.publish_directory || "dist"; // Default
+    const netlifyTomlContent = `[build]
+  command = "${buildCommand}"
+  publish = "${publishDir}"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+`;
+    fs.writeFileSync(path.join(repoDir, 'netlify.toml'), netlifyTomlContent);
+    console.log(`Worker: netlify.toml created with command='${buildCommand}', publish='${publishDir}' for deployment ${deployment_id}.`);
+
+    // 6. Add, commit, and push the extracted files + netlify.toml
+    try {
+      execSync(`git add .`, { cwd: repoDir });
+      // Check if there are changes to commit
+      const statusOutput = execSync('git status --porcelain', { cwd: repoDir }).toString();
+      if (statusOutput) {
+        execSync(`git commit -m "feat: Unpack MVP and configure for Netlify deployment"`, { cwd: repoDir });
+        console.log(`Worker: Files committed for deployment ${deployment_id}.`);
+      } else {
+        console.log(`Worker: No changes to commit for deployment ${deployment_id}. Repo might have been initialized with content already.`);
+      }
+      execSync(`git push origin HEAD`, { cwd: repoDir, stdio: 'pipe' }); // Push current branch
+      console.log(`Worker: Code pushed to GitHub for deployment ${deployment_id}.`);
+    } catch (gitPushError) {
+      const errMsg = `Worker: Failed to push code to GitHub: ${gitPushError.message}`;
+      console.error(errMsg, gitPushError.stderr?.toString());
+      await updateDeploymentStatus(deployment_id, "failed", `Worker: Git push error. ${gitPushError.message}`);
+      return res.status(500).json({ error: errMsg });
+    }
+
+    await updateDeploymentStatus(deployment_id, 'code_pushed_awaiting_netlify_setup', null);
+    console.log(`Worker: Deployment ${deployment_id} successfully processed. Status: code_pushed_awaiting_netlify_setup.`);
+    res.json({ success: true, message: "Worker processed deployment successfully. Code pushed to GitHub." });
 
   } catch (err) {
-    console.error("Deployment failed in main try-catch block:", err);
-    const errorMessage = err.message || "An unexpected error occurred during deployment.";
-    await supabase.from("deployments").update({ status: "failed", error_message: errorMessage }).eq("id", deployment_id);
-    res.status(500).json({ error: "Deployment failed", details: errorMessage });
+    console.error(`Worker: Deployment ${deployment_id} failed in main try-catch:`, err);
+    const errorMessage = err.message || "An unexpected error occurred during worker processing.";
+    // Avoid double update if status was already set to failed by a specific catch block
+    const { data: currentDeployment } = await supabase.from("deployments").select("status").eq("id", deployment_id).single();
+    if (currentDeployment && currentDeployment.status !== "failed") {
+        await updateDeploymentStatus(deployment_id, "failed", errorMessage);
+    }
+    res.status(500).json({ error: "Worker processing failed", details: errorMessage });
   } finally {
     // Clean up temporary directory
     if (fs.existsSync(tmpDir)) {
-      // fs.rmSync with recursive: true and force: true removes non-empty directories [7, 8, 13, 16, 18]
       fs.rmSync(tmpDir, { recursive: true, force: true });
-      console.log(`Cleaned up temporary directory: ${tmpDir}`);
+      console.log(`Worker: Cleaned up temporary directory: ${tmpDir} for deployment ${deployment_id}`);
     }
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Worker running on port ${PORT}`));
+const PORT = process.env.PORT || 3001; // Changed default port to avoid conflict with potential vite dev server
+app.listen(PORT, () => console.log(`🚀 StartiFi Deployment Worker running on port ${PORT}`));

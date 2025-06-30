@@ -99,19 +99,18 @@ Deno.serve(async (req) => {
     // Debug log the deployment record that will be sent to the worker
     console.log('Full deployment record:', JSON.stringify(fullDeployment));
     
-    // Check for required repository fields
-    if (!fullDeployment.repo_owner || !fullDeployment.repo_name || !fullDeployment.github_repo_url) {
-      const missingFields = [];
-      if (!fullDeployment.repo_owner) missingFields.push('repo_owner');
-      if (!fullDeployment.repo_name) missingFields.push('repo_name');
-      if (!fullDeployment.github_repo_url) missingFields.push('github_repo_url');
-      
-      console.error(`Missing repository details: ${missingFields.join(', ')}`);
+    // Check for required repository fields and storage_path
+    const requiredFields = ['repo_owner', 'repo_name', 'github_repo_url', 'storage_path', 'mvp_id'];
+    const missingFields = requiredFields.filter(field => !fullDeployment[field]);
+
+    if (missingFields.length > 0) {
+      const errorMessage = `Missing critical deployment details: ${missingFields.join(', ')}. Cannot proceed with worker.`;
+      console.error(errorMessage, fullDeployment);
       
       await supabase
         .from('deployments')
         .update({
-          error_message: `Missing repository details: ${missingFields.join(', ')}`,
+          error_message: errorMessage,
           status: 'failed',
           updated_at: new Date().toISOString()
         })
