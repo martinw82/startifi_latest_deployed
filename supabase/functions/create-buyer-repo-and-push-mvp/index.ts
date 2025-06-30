@@ -78,6 +78,7 @@ Deno.serve(async (req)=>{
         });
       }
       console.log('create-buyer-repo-and-push-mvp: MVP access verified.');
+    }
     console.log(`create-buyer-repo-and-push-mvp: Fetching GitHub token for user ${user_id}.`);
     const { data: tokenData, error: tokenError } = await supabase.from('user_oauth_tokens').select('access_token').eq('user_id', user_id).eq('provider', 'github').maybeSingle();
     if (tokenError || !tokenData) {
@@ -445,7 +446,6 @@ ${mvp.tech_stack.map((tech)=>`- ${tech}`).join('\n')}
     console.log('create-buyer-repo-and-push-mvp: Returning success response.');
     return new Response(JSON.stringify({
       success: true,
-      success: true,
       github_repo_url: repoUrl,
       git_url: gitUrl,
       repo_name: sanitizedRepoName,
@@ -471,9 +471,8 @@ ${mvp.tech_stack.map((tech)=>`- ${tech}`).join('\n')}
     });
   }
 });
-// Helper function to convert ArrayBuffer to base64
 
-// This is the inefficient function that loads the entire file into memory and converts to base64
+// Helper function to convert ArrayBuffer to base64
 function arrayBufferToBase64(buffer) {
   let binary = '';
   const bytes = new Uint8Array(buffer);
@@ -637,6 +636,7 @@ async function updateDeploymentStatus(supabase, deploymentId, status, errorMessa
     console.error(`Failed to update deployment status to ${status}:`, error);
   }
 }
+
 async function getFileSha(owner, repo, path, token) {
   try {
     const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
