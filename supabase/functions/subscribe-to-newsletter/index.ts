@@ -8,6 +8,15 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Helper function to generate MD5 hash (required by Mailchimp for member IDs)
+async function md5(message: string): Promise<string> {
+  const msgUint8 = new TextEncoder().encode(message); // encode as (utf-8) Uint8Array
+  const hashBuffer = await crypto.subtle.digest('MD5', msgUint8); // hash the message
+  const hashArray = Array.from(new Uint8Array(hashBuffer)); // convert buffer to byte array
+  const hexHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // convert bytes to hex string
+  return hexHash;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -43,10 +52,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Fetch newsletter_type details from the database to get esp_list_id (if applicable)
+    // 2. Fetch newsletter_type details from the database to get name (esp_list_id is now from env)
     const { data: newsletterType, error: newsletterTypeError } = await supabase
       .from('newsletter_types') // Assuming you have a 'newsletter_types' table
-      .select('name, esp_list_id')
+      .select('name')
       .eq('id', newsletter_type_id)
       .single();
 
@@ -61,38 +70,50 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Integrate with Email Service Provider (ESP) - Placeholder
-    // In a real application, you would use the ESP_API_KEY and newsletterType.esp_list_id
-    // to add the user's email to your mailing list.
-    // Example (using a hypothetical ESP API):
-    /*
-    const espApiKey = Deno.env.get('ESP_API_KEY');
-    const espResponse = await fetch(`https://api.example-esp.com/lists/${newsletterType.esp_list_id}/members`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${espApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email_address: email,
-        status: 'subscribed', // or 'pending' if double opt-in
-      }),
-    });
+    // 3. Integrate with Mailchimp
+    const mailchimpApiKey = Deno.env.get('MAILCHIMP_API_KEY');
+    const mailchimpAudienceId = Deno.env.get('MAILCHIMP_AUDIENCE_ID');
+    const mailchimpApiServer = Deno.env.get('MAILCHIMP_API_SERVER'); // e.g., 'us1', 'us2'
 
-    if (!espResponse.ok) {
-      const errorData = await espResponse.json();
-      console.error('Error adding subscriber to ESP:', errorData);
+    if (!mailchimpApiKey || !mailchimpAudienceId || !mailchimpApiServer) {
+      console.error('Mailchimp API credentials not set');
       return new Response(
-        JSON.stringify({ error: `Failed to subscribe with ESP: ${errorData.detail || 'Unknown error'}` }),
+        JSON.stringify({ error: 'Mailchimp configuration error' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500,
         }
       );
     }
-    */
-    console.log(`[ESP Integration Placeholder] Subscribing ${email} to ${newsletterType.name} (List ID: ${newsletterType.esp_list_id})`);
 
+    const subscriberHash = await md5(email.toLowerCase());
+    const mailchimpUrl = `https://${mailchimpApiServer}.api.mailchimp.com/3.0/lists/${mailchimpAudienceId}/members/${subscriberHash}`;
+
+    const mailchimpResponse = await fetch(mailchimpUrl, {
+      method: 'PUT', // Use PUT to add or update a member
+      headers: {
+        'Authorization': `Basic ${btoa(`anystring:${mailchimpApiKey}`)}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email_address: email,
+        status_if_new: 'subscribed', // Set status for new members
+        status: 'subscribed', // Update status for existing members
+      }),
+    });
+
+    if (!mailchimpResponse.ok) {
+      const errorData = await mailchimpResponse.json();
+      console.error('Error adding/updating subscriber to Mailchimp:', errorData);
+      return new Response(
+        JSON.stringify({ error: `Failed to subscribe with Mailchimp: ${errorData.detail || 'Unknown error'}` }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+    console.log(`Successfully subscribed ${email} to Mailchimp audience.`);
 
     // 4. Insert/update a record in user_newsletter_subscriptions table
     const { data, error } = await supabase
