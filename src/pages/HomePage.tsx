@@ -26,6 +26,8 @@ export const HomePage: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [featuredMVPs, setFeaturedMVPs] = useState<MVP[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [mvpCount, setMvpCount] = useState<number>(0);
+  const [deploymentCount, setDeploymentCount] = useState<number>(0);
 
   useEffect(() => {
     const loadFeaturedMVPs = async () => {
@@ -44,6 +46,23 @@ export const HomePage: React.FC = () => {
     };
 
     loadFeaturedMVPs();
+  }, []);
+
+  // Load dynamic stats for the homepage
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const totalMVPs = await APIService.getTotalMVPs();
+        const totalDeployments = await APIService.getTotalDeployments();
+        
+        setMvpCount(totalMVPs);
+        setDeploymentCount(totalDeployments);
+      } catch (error) {
+        console.error('Error loading homepage stats:', error);
+      }
+    };
+
+    loadStats();
   }, []);
 
   return (
@@ -95,8 +114,8 @@ export const HomePage: React.FC = () => {
               {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-4xl mx-auto">
                 <div className="bg-white/90 dark:bg-midnight-800/20 backdrop-blur-md rounded-lg p-4 text-center border border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-lg transition-colors duration-300">
-                  <div className="text-3xl font-bold text-blue-600 dark:text-neon-green mb-1 transition-colors duration-300">
-                    1,247
+                  <div className="text-3xl font-bold text-blue-600 dark:text-neon-green mb-1 transition-colors duration-300" title="Total number of MVPs deployed by users">
+                    {deploymentCount.toLocaleString()}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
                     MVPs Launched
@@ -104,8 +123,8 @@ export const HomePage: React.FC = () => {
                 </div>
                 
                 <div className="bg-white/90 dark:bg-midnight-800/20 backdrop-blur-md rounded-lg p-4 text-center border border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-lg transition-colors duration-300">
-                  <div className="text-3xl font-bold text-blue-600 dark:text-neon-green mb-1 transition-colors duration-300">
-                    89
+                  <div className="text-3xl font-bold text-blue-600 dark:text-neon-green mb-1 transition-colors duration-300" title="Total number of templates available">
+                    {mvpCount.toLocaleString()}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
                     Templates

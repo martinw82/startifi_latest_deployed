@@ -492,6 +492,56 @@ export class APIService {
       throw error;
     }
   }
+
+  // Admin functions
+  static async getAdminStats(): Promise<any> {
+    // For now, return mock data
+    return {
+      totalUsers: 1247,
+      totalSellers: 89,
+      totalMVPs: 156,
+      totalDownloads: 3582,
+      revenue: 15790,
+    };
+  }
+
+  static async getTotalMVPs(): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('mvps')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'approved'); // Only count approved MVPs
+      
+      if (error) {
+        console.error('Error fetching total MVPs count:', error);
+        return 0;
+      }
+      
+      return count || 0;
+    } catch (error) {
+      console.error('Error in getTotalMVPs:', error);
+      return 0;
+    }
+  }
+
+  static async getTotalDeployments(): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('deployments')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'completed'); // Only count successful deployments
+      
+      if (error) {
+        console.error('Error fetching total deployments count:', error);
+        return 0;
+      }
+      
+      return count || 0;
+    } catch (error) {
+      console.error('Error in getTotalDeployments:', error);
+      return 0;
+    }
+  }
 }
 
 // GitHub Integration Methods
