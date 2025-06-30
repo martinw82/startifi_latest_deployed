@@ -387,24 +387,25 @@ ${mvp.tech_stack.map((tech)=>`- ${tech}`).join('\n')}
     } else if (contentType === 'application/vnd.rar' || contentType === 'application/x-rar-compressed' || filePath.endsWith('.rar')) {
       fileExtension = '.rar';
     }
-    // Upload the MVP archive to the repository root with its actual extension to trigger the GitHub Action
+
     const archiveFileName = `mvp-source${fileExtension}`;
-    console.log(`create-buyer-repo-and-push-mvp: Uploading MVP archive as ${archiveFileName}...`);
-    const archiveResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${sanitizedRepoName}/contents/${archiveFileName}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `token ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message: 'Add MVP source archive',
-        content: arrayBufferToBase64(fileBuffer),
-        branch: 'main'
-      })
-    });
-    if (!archiveResponse.ok) {
-      console.error(`create-buyer-repo-and-push-mvp: Failed to upload MVP archive: ${await archiveResponse.text()}`);
+
+    // Use the Git Data API for uploading large files
+    try {
+      console.log(`create-buyer-repo-and-push-mvp: Uploading MVP archive as ${archiveFileName} using Git Data API...`);
+      await uploadLargeFileUsingGitDataApi(
+        githubUsername, 
+        sanitizedRepoName, 
+        archiveFileName, 
+        fileBuffer, 
+        'Add MVP source archive', 
+        'main', 
+        githubToken
+      );
+      
+      console.log('create-buyer-repo-and-push-mvp: MVP archive uploaded successfully.');
+    } catch (uploadError) {
+      console.error(`create-buyer-repo-and-push-mvp: Failed to upload MVP archive:`, uploadError);
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to upload MVP archive to GitHub repository');
       return new Response(JSON.stringify({
         error: 'Failed to upload MVP archive to GitHub repository'
@@ -416,7 +417,6 @@ ${mvp.tech_stack.map((tech)=>`- ${tech}`).join('\n')}
         status: 500
       });
     }
-    console.log('create-buyer-repo-and-push-mvp: MVP archive uploaded successfully.');
     console.log('create-buyer-repo-and-push-mvp: Returning success response.');
     return new Response(JSON.stringify({
       success: true,
@@ -445,6 +445,8 @@ ${mvp.tech_stack.map((tech)=>`- ${tech}`).join('\n')}
   }
 });
 // Helper function to convert ArrayBuffer to base64
+
+// This is the inefficient function that loads the entire file into memory and converts to base64
 function arrayBufferToBase64(buffer) {
   let binary = '';
   const bytes = new Uint8Array(buffer);
@@ -453,6 +455,147 @@ function arrayBufferToBase64(buffer) {
   }
   return btoa(binary);
 }
+
+// Use Git Data API to handle large files more efficiently
+async function uploadLargeFileUsingGitDataApi(repoOwner, repoName, filePath, fileBuffer, commitMessage, branch, token) {
+  console.log(`Using Git Data API to upload large file: ${filePath}`);
+  try {
+    // 1. Create a blob with the file content
+    console.log(`Creating Git blob for ${filePath}...`);
+    const blobResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/git/blobs`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content: arrayBufferToBase64(fileBuffer),
+        encoding: 'base64'
+      })
+    });
+
+    if (!blobResponse.ok) {
+      throw new Error(`Failed to create blob: ${await blobResponse.text()}`);
+    }
+
+    const blobData = await blobResponse.json();
+    const blobSha = blobData.sha;
+    console.log(`Blob created with SHA: ${blobSha}`);
+
+    // 2. Get the reference for the branch
+    console.log(`Getting reference for branch: ${branch}...`);
+    const refResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/git/ref/heads/${branch}`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (!refResponse.ok) {
+      throw new Error(`Failed to get reference: ${await refResponse.text()}`);
+    }
+
+    const refData = await refResponse.json();
+    const lastCommitSha = refData.object.sha;
+    console.log(`Current branch reference points to commit: ${lastCommitSha}`);
+
+    // 3. Get the commit that the branch points to
+    console.log(`Getting commit: ${lastCommitSha}...`);
+    const commitResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/git/commits/${lastCommitSha}`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (!commitResponse.ok) {
+      throw new Error(`Failed to get commit: ${await commitResponse.text()}`);
+    }
+
+    const commitData = await commitResponse.json();
+    const baseTreeSha = commitData.tree.sha;
+    console.log(`Base tree SHA: ${baseTreeSha}`);
+
+    // 4. Create a tree with the blob
+    console.log(`Creating tree with blob...`);
+    const treeResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/git/trees`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        base_tree: baseTreeSha,
+        tree: [{
+          path: filePath,
+          mode: '100644', // File mode (blob)
+          type: 'blob',
+          sha: blobSha
+        }]
+      })
+    });
+
+    if (!treeResponse.ok) {
+      throw new Error(`Failed to create tree: ${await treeResponse.text()}`);
+    }
+
+    const treeData = await treeResponse.json();
+    const newTreeSha = treeData.sha;
+    console.log(`New tree created with SHA: ${newTreeSha}`);
+
+    // 5. Create a commit with the tree
+    console.log(`Creating commit with tree: ${newTreeSha}...`);
+    const newCommitResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/git/commits`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: commitMessage,
+        tree: newTreeSha,
+        parents: [lastCommitSha]
+      })
+    });
+
+    if (!newCommitResponse.ok) {
+      throw new Error(`Failed to create commit: ${await newCommitResponse.text()}`);
+    }
+
+    const newCommitData = await newCommitResponse.json();
+    const newCommitSha = newCommitData.sha;
+    console.log(`New commit created with SHA: ${newCommitSha}`);
+
+    // 6. Update the reference
+    console.log(`Updating reference to point to new commit: ${newCommitSha}...`);
+    const updateRefResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/git/refs/heads/${branch}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sha: newCommitSha,
+        force: false
+      })
+    });
+
+    if (!updateRefResponse.ok) {
+      throw new Error(`Failed to update reference: ${await updateRefResponse.text()}`);
+    }
+
+    console.log(`Reference successfully updated to new commit. File upload complete.`);
+    return true;
+  } catch (error) {
+    console.error('Error using Git Data API for large file upload:', error);
+    throw error;
+  }
+}
+
 async function updateDeploymentStatus(supabase, deploymentId, status, errorMessage) {
   const updateData = {
     status,
