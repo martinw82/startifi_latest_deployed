@@ -162,6 +162,7 @@ export const MVPDetailPage: React.FC = () => {
       if (result.github_auth_url) {
         // We need to redirect to GitHub for authentication first
         setDeploymentMessage('Redirecting to GitHub to authorize access...');
+        setTimeout(() => {
           window.location.href = result.github_auth_url;
         }, 1000);
         return;
