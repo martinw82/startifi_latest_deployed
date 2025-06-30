@@ -81,7 +81,7 @@ export const MVPDetailPage: React.FC = () => {
     fetchMVPDetails();
   }, [mvpId, fetchMVPReviews]);
 
-  const handleReviewSubmitted = useCallback(() => {
+  const handleReviewSubmitted = useCallback(async () => {
     setReviewSubmitMessage("Review submitted successfully! Refreshing reviews...");
     if (mvp) {
       // Notify the seller of the new review
@@ -89,7 +89,7 @@ export const MVPDetailPage: React.FC = () => {
         await NotificationService.createNotification({
           user_id: mvp.seller_id,
           type: 'new_review',
-          message: `Someone left a new ${ratingToText(reviewData.rating)} review on your MVP "${mvp.title}"`,
+          message: `Someone left a new review on your MVP "${mvp.title}"`,
           link: `/mvp/${mvp.id}`
         });
       } catch (notificationError) {
