@@ -49,6 +49,7 @@ export interface MVP {
   preview_images: string[];
   demo_url?: string;
   github_url?: string;
+  stackblitz_link?: string; // Added for StackBlitz embed
   licensing_terms: 'standard_commercial' | 'premium_commercial' | 'personal_use_only';
   status: 'pending_review' | 'scan_failed' | 'approved' | 'rejected' | 'archived' | 'ipfs_pin_failed';
   version_number: string;

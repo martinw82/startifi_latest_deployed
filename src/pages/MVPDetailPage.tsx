@@ -367,6 +367,42 @@ export const MVPDetailPage: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* StackBlitz Embed and Open in Bolt Button */}
+          {(mvp.stackblitz_link || mvp.github_url) && (
+            <div className="my-6">
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">Try it Out</h3>
+              {mvp.stackblitz_link && (
+                <div className="mb-4">
+                  <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Live Code Preview (StackBlitz)</h4>
+                  <iframe
+                    src={`${mvp.stackblitz_link}${mvp.stackblitz_link.includes('?') ? '&' : '?'}embed=1&view=editor`}
+                    width="100%"
+                    height="500px"
+                    frameBorder="0"
+                    className="rounded-lg shadow-md"
+                    title="StackBlitz Embed"
+                  ></iframe>
+                </div>
+              )}
+              {mvp.github_url && (
+                <div className="mt-4">
+                   <h4 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Develop with Bolt</h4>
+                  <a
+                    href={`https://bolt.new?template=${encodeURIComponent(mvp.github_url)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-400 dark:hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 dark:focus:ring-offset-gray-800 transition-colors duration-150"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-lightning-charge-fill mr-2" viewBox="0 0 16 16">
+                      <path d="M11.251.068a.5.5 0 0 1 .227.58L9.677 6.5H13a.5.5 0 0 1 .364.843l-8 8.5a.5.5 0 0 1-.842-.49L6.323 9.5H3a.5.5 0 0 1-.364-.843l8-8.5a.5.5 0 0 1 .615-.09z"/>
+                    </svg>
+                    Open in Bolt
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Deployment Options Section */}
           {mvp.github_url && (

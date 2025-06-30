@@ -37,6 +37,7 @@ interface FormData {
   techStack: string[];
   demoUrl: string;
   githubUrl: string;
+  stackblitzLink: string; // Added stackblitzLink
   licensingTerms: 'standard_commercial' | 'premium_commercial' | 'personal_use_only';
   versionNumber: string;
   changelog: string;
@@ -64,6 +65,7 @@ export const EditMVPPage: React.FC = () => {
     techStack: [],
     demoUrl: '',
     githubUrl: '',
+    stackblitzLink: '', // Initial value for stackblitzLink
     licensingTerms: 'standard_commercial',
     versionNumber: '',
     changelog: ''
@@ -115,6 +117,7 @@ export const EditMVPPage: React.FC = () => {
             techStack: mvp.tech_stack,
             demoUrl: mvp.demo_url || '',
             githubUrl: mvp.github_url || '',
+            stackblitzLink: mvp.stackblitz_link || '', // Pre-fill stackblitzLink
             licensingTerms: mvp.licensing_terms,
             versionNumber: mvp.version_number,
             changelog: mvp.changelog || ''
@@ -252,6 +255,9 @@ export const EditMVPPage: React.FC = () => {
     if (formData.githubUrl && !isValidUrl(formData.githubUrl)) {
       newErrors.githubUrl = 'Please enter a valid URL';
     }
+    if (formData.stackblitzLink && !isValidUrl(formData.stackblitzLink)) {
+      newErrors.stackblitzLink = 'Please enter a valid StackBlitz URL';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -291,6 +297,7 @@ export const EditMVPPage: React.FC = () => {
         tech_stack: formData.techStack,
         demo_url: formData.demoUrl || null,
         github_url: formData.githubUrl || null,
+        stackblitz_link: formData.stackblitzLink || null, // Add stackblitz_link to updates
         licensing_terms: formData.licensingTerms,
         version_number: formData.versionNumber,
         changelog: formData.changelog || null,
@@ -557,6 +564,24 @@ export const EditMVPPage: React.FC = () => {
                     />
                     {errors.githubUrl && <p className="text-red-500 text-sm mt-1">{errors.githubUrl}</p>}
                   </div>
+                </div>
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-lightning-charge-fill inline mr-2" viewBox="0 0 16 16">
+                      <path d="M11.251.068a.5.5 0 0 1 .227.58L9.677 6.5H13a.5.5 0 0 1 .364.843l-8 8.5a.5.5 0 0 1-.842-.49L6.323 9.5H3a.5.5 0 0 1-.364-.843l8-8.5a.5.5 0 0 1 .615-.09z"/>
+                    </svg>
+                    StackBlitz Link (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.stackblitzLink}
+                    onChange={(e) => handleInputChange('stackblitzLink', e.target.value)}
+                    className={`w-full px-4 py-3 bg-white/10 backdrop-blur-md border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 ${
+                      errors.stackblitzLink ? 'border-red-500' : 'border-white/20'
+                    }`}
+                    placeholder="https://stackblitz.com/edit/your-project?embed=1..."
+                  />
+                  {errors.stackblitzLink && <p className="text-red-500 text-sm mt-1">{errors.stackblitzLink}</p>}
                 </div>
               </div>
 
