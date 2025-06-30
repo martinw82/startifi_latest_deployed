@@ -43,26 +43,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update deployment status to configuring_netlify
-    await supabase
-      .from('deployments')
-      .update({
-        status: 'configuring_netlify',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', deployment_id);
+    // Update deployment status to netlify_configuring_site
+    // Use the helper function for consistency
+    await updateDeploymentStatus(supabase, deployment_id, 'netlify_configuring_site', null);
 
-    // Verify the deployment record exists and belongs to this user
+    // Verify the deployment record exists, belongs to this user, and get mvp_id
     const { data: deploymentData, error: deploymentError } = await supabase
       .from('deployments')
-      .select('*')
+      .select('mvp_id, user_id') // Only select what's needed
       .eq('id', deployment_id)
       .eq('user_id', user_id)
       .single();
 
-    if (deploymentError || !deploymentData) {
-      console.error('Error verifying deployment record:', deploymentError);
-      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Invalid deployment ID or unauthorized access');
+    if (deploymentError || !deploymentData || !deploymentData.mvp_id) {
+      console.error('Error verifying deployment record or mvp_id missing:', deploymentError, deploymentData);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Invalid deployment ID, unauthorized access, or missing MVP association.');
       return new Response(
         JSON.stringify({ error: 'Invalid deployment ID or unauthorized access' }),
         {
@@ -165,8 +160,44 @@ Deno.serve(async (req) => {
     const githubRepoId = githubRepoData.id; // This is the numeric ID
     const isRepoPrivate = githubRepoData.private; // Get private status
 
+    // Fetch MVP build settings
+    let buildCommand = 'npm run build'; // Default build command
+    let publishDir = 'dist'; // Default publish directory
+
+    if (deploymentData.mvp_id) {
+      const { data: mvpDetails, error: mvpError } = await supabase
+        .from('mvps')
+        .select('build_command, publish_directory')
+        .eq('id', deploymentData.mvp_id)
+        .single();
+
+      if (mvpError) {
+        console.warn(`Could not fetch MVP build settings for mvp_id ${deploymentData.mvp_id}: ${mvpError.message}. Using defaults.`);
+      } else if (mvpDetails) {
+        buildCommand = mvpDetails.build_command || buildCommand;
+        publishDir = mvpDetails.publish_directory || publishDir;
+        console.log(`Using custom build settings for mvp_id ${deploymentData.mvp_id}: command='${buildCommand}', dir='${publishDir}'`);
+      }
+    } else {
+        console.warn(`mvp_id not found on deployment record ${deployment_id}. Using default build settings.`);
+    }
+
     // Step 1: Create a new Netlify site and link the repository simultaneously
-    console.log(`Creating Netlify site for user ${user_id}: ${uniqueSiteName}`);
+    console.log(`Creating Netlify site for user ${user_id}: ${uniqueSiteName} with build command "${buildCommand}" and publish dir "${publishDir}"`);
+
+    const netlifySitePayload = {
+      name: uniqueSiteName,
+      repo: {
+        provider: 'github',
+        id: githubRepoId,
+        repo: `${repoOwner}/${repoName}`,
+        private: isRepoPrivate,
+        branch: 'main', // Assuming 'main', make configurable if needed
+        cmd: buildCommand,
+        dir: publishDir,
+        functions_dir: null, // Or make configurable
+      },
+    };
 
     const createSiteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
       method: 'POST',
@@ -174,25 +205,19 @@ Deno.serve(async (req) => {
         'Authorization': `Bearer ${netlifyToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: uniqueSiteName,
-        repo: { // Add this repo object
-          provider: 'github',
-          id: githubRepoId, // Use the numeric GitHub repository ID here
-          repo: `${repoOwner}/${repoName}`, // Add the full repository name (e.g., "owner/repo-name")
-          private: isRepoPrivate, // Use the actual private status from GitHub
-          branch: 'main', // Specify the main branch for deployment
-          cmd: 'npm run build', // The build command for your project
-          dir: 'dist', // The publish directory after building
-          functions_dir: null, // Set to null if you don't have Netlify Functions
-        },
-      }),
+      body: JSON.stringify(netlifySitePayload),
     });
 
     if (!createSiteResponse.ok) {
-      const errorData = await createSiteResponse.text();
-      console.error('Failed to create Netlify site:', errorData);
-      await updateDeploymentStatus(supabase, deployment_id, 'failed', `Failed to create Netlify site: ${errorData}`);
+      const errorText = await createSiteResponse.text(); // Use text() for better error details
+      let errorDetail = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorDetail = errorJson.message || errorJson.error || JSON.stringify(errorJson);
+      } catch (e) { /* Not a JSON error, use raw text */ }
+
+      console.error('Failed to create Netlify site:', errorDetail, 'Payload sent:', netlifySitePayload);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', `Failed to create Netlify site: ${errorDetail}`);
       return new Response(
         JSON.stringify({ error: 'Failed to create Netlify site' }),
         {
@@ -209,23 +234,26 @@ Deno.serve(async (req) => {
 
     console.log(`Successfully created Netlify site: ${siteUrl} (ID: ${siteId})`);
 
-    // Update deployment with Netlify site info and set status to completed
-    // We're keeping the status as 'completed' even though the GitHub Action will still run
-    // The user will see the site appear after the GitHub Action unpacks the files and Netlify builds
+    // Update deployment with Netlify site info and set status to 'netlify_site_created_pending_build'
+    console.log(`Updating deployment ${deployment_id} with Netlify site info and new status.`);
     const { data: updatedDeployment, error: updateError } = await supabase
       .from('deployments')
       .update({
         netlify_site_url: siteUrl,
         netlify_site_id: siteId,
-        status: 'completed', // Set status to completed directly after site creation
+        status: 'netlify_site_created_pending_build', // New status
         netlify_deploy_id: siteData.build_id, // Netlify returns build_id on site creation with repo
         updated_at: new Date().toISOString(),
       })
-      .eq('id', deployment_id);
+      .eq('id', deployment_id)
+      .select() // Select the updated record to log it
+      .single(); // Expect a single record
 
     if (updateError) {
       console.error('Error updating deployment with Netlify info:', updateError);
-      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to update deployment with Netlify site info');
+      // The status was already 'netlify_configuring_site', if this fails, it might be better to leave it
+      // or try to set a more specific error status if critical. For now, log and continue to return error.
+      // await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to update deployment with Netlify site info after site creation.');
       return new Response(
         JSON.stringify({ error: 'Failed to update deployment with Netlify site info' }),
         {
