@@ -778,7 +778,6 @@ export const UserSettingsPage: React.FC = () => {
                   </GlossyButton>
                 </div>
               </div>
-              </div>
             </GlassCard>
           </motion.div>
         )}
