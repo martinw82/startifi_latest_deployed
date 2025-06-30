@@ -44,7 +44,7 @@ export const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white">
+    <footer className="bg-gradient-to-br from-midnight-900 via-midnight-800 to-midnight-700 text-cyber-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Brand Section */}
@@ -53,10 +53,10 @@ export const Footer: React.FC = () => {
               className="flex items-center space-x-2 mb-4"
               whileHover={{ scale: 1.05 }}
             >
-              <Code2 className="w-8 h-8 text-blue-400" />
-              <span className="text-xl font-bold">MVP Library</span>
+              <Code2 className="w-8 h-8 text-neon-cyan" />
+              <span className="text-xl font-bold bg-gradient-to-r from-neon-cyan to-neon-violet bg-clip-text text-transparent">MVP Library</span>
             </motion.div>
-            <p className="text-gray-300 mb-6">
+            <p className="text-cyber-gray mb-6">
               Accelerate your development with AI-ready MVP codebases. 
               Launch faster, iterate smarter.
             </p>
@@ -69,11 +69,11 @@ export const Footer: React.FC = () => {
                 <motion.a
                   key={index}
                   href={social.href}
-                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                  className="p-2 rounded-full bg-midnight-800/50 hover:bg-midnight-700/70 transition-colors border border-neon-cyan/10 shadow-neon-glow-sm"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
-                  <social.icon className="w-5 h-5" />
+                  <social.icon className="w-5 h-5 text-neon-cyan" />
                 </motion.a>
               ))}
             </div>
@@ -82,14 +82,14 @@ export const Footer: React.FC = () => {
           {/* Footer Links */}
           {footerSections.map((section, index) => (
             <div key={section.title}>
-              <h3 className="text-lg font-semibold mb-4">{section.title}</h3>
+              <h3 className="text-lg font-semibold mb-4 text-cyber-white">{section.title}</h3>
               <ul className="space-y-2">
                 {section.links.map((link) => (
                   <li key={link.label}>
                     {link.href.startsWith('/') ? (
                       <Link to={link.href}>
                         <motion.a
-                          className="text-gray-300 hover:text-white transition-colors"
+                          className="text-cyber-gray hover:text-neon-cyan transition-colors"
                           whileHover={{ x: 4 }}
                         >
                           {link.label}
@@ -98,7 +98,7 @@ export const Footer: React.FC = () => {
                     ) : (
                       <motion.a
                         href={link.href}
-                        className="text-gray-300 hover:text-white transition-colors"
+                        className="text-cyber-gray hover:text-neon-cyan transition-colors"
                         whileHover={{ x: 4 }}
                       >
                         {link.label}
@@ -111,12 +111,12 @@ export const Footer: React.FC = () => {
           ))}
         </div>
 
-        <div className="border-t border-white/10 mt-12 pt-8">
+        <div className="border-t border-neon-cyan/10 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400">
+            <p className="text-cyber-gray">
               © 2025 MVP Library. All rights reserved.
             </p>
-            <p className="text-gray-400 mt-4 md:mt-0">
+            <p className="text-cyber-gray mt-4 md:mt-0">
               Built for developers, by developers
             </p>
           </div>

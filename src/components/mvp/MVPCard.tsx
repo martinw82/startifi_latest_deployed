@@ -12,7 +12,7 @@ interface MVPCardProps {
 
 export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
   return (
-    <GlassCard hover onClick={onClick} className="p-6 h-full flex flex-col">
+    <GlassCard hover onClick={onClick} className="p-6 h-full flex flex-col card-hover">
       {/* Preview Image */}
       <div className="relative mb-4 rounded-xl overflow-hidden">
         <img
@@ -20,11 +20,11 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
           alt={mvp.title}
           className="w-full h-48 object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-midnight-900/80 to-transparent" />
         
         {/* Category Badge */}
         <div className="absolute top-3 left-3">
-          <span className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-full">
+          <span className="px-3 py-1 text-xs font-medium bg-gradient-to-r from-neon-cyan to-neon-violet text-cyber-white rounded-full shadow-neon-glow-sm">
             {mvp.category}
           </span>
         </div>
@@ -32,11 +32,11 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
 
       {/* Content */}
       <div className="flex-grow">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">
+        <h3 className="text-xl font-bold text-cyber-white mb-2 line-clamp-2">
           {mvp.title}
         </h3>
         
-        <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
+        <p className="text-cyber-gray text-sm mb-4 line-clamp-2">
           {mvp.tagline}
         </p>
 
@@ -45,13 +45,13 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
           {mvp.tech_stack.slice(0, 3).map((tech) => (
             <span
               key={tech}
-              className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full"
+              className="px-2 py-1 text-xs bg-midnight-800/50 text-neon-cyan border border-neon-cyan/20 rounded-full"
             >
               {tech}
             </span>
           ))}
           {mvp.tech_stack.length > 3 && (
-            <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 rounded-full">
+            <span className="px-2 py-1 text-xs bg-midnight-800/50 text-cyber-gray border border-neon-violet/20 rounded-full">
               +{mvp.tech_stack.length - 3} more
             </span>
           )}
@@ -61,12 +61,12 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-1">
-              <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              <span className="text-sm font-medium">{mvp.average_rating.toFixed(1)}</span>
+              <Star className="w-4 h-4 text-neon-green fill-current" />
+              <span className="text-sm font-medium text-cyber-white">{mvp.average_rating.toFixed(1)}</span>
             </div>
             <div className="flex items-center space-x-1">
-              <Download className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-500">{mvp.download_count}</span>
+              <Download className="w-4 h-4 text-cyber-gray" />
+              <span className="text-sm text-cyber-gray">{mvp.download_count}</span>
             </div>
           </div>
           
@@ -76,7 +76,7 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
                 href={mvp.demo_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                className="p-1.5 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 transition-colors"
                 whileHover={{ scale: 1.1 }}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -88,7 +88,7 @@ export const MVPCard: React.FC<MVPCardProps> = ({ mvp, onClick }) => {
                 href={mvp.github_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                className="p-1.5 rounded-full bg-neon-violet/10 text-neon-violet border border-neon-violet/30 hover:bg-neon-violet/20 transition-colors"
                 whileHover={{ scale: 1.1 }}
                 onClick={(e) => e.stopPropagation()}
               >

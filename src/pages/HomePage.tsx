@@ -114,7 +114,15 @@ export const HomePage: React.FC = () => {
       {/* Hero Section */}
       <section className="relative pt-24 pb-16 overflow-hidden">
         {/* Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900" />
+        <div className="absolute inset-0 bg-gradient-to-br from-midnight-900 via-midnight-800 to-midnight-700" />
+        
+        {/* Particle/Grid Background */}
+        <div className="absolute inset-0 bg-cyber-grid bg-[length:50px_50px] opacity-10" />
+        
+        {/* Glowing Orbs (Background Effect) */}
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-neon-cyan/20 rounded-full filter blur-3xl animate-pulse-slow"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-neon-violet/20 rounded-full filter blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+        
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cg fill=%22none%22 fill-rule=%22evenodd%22%3E%3Cg fill=%22%239C92AC%22 fill-opacity=%220.1%22%3E%3Ccircle cx=%2230%22 cy=%2230%22 r=%224%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20" />
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -124,14 +132,14 @@ export const HomePage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
+              <h1 className="text-4xl md:text-6xl font-bold text-cyber-white mb-6">
                 Launch Faster.{' '}
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-neon-cyan to-neon-violet bg-clip-text text-transparent animate-glow">
                   Build Smarter.
                 </span>
               </h1>
               
-              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
+              <p className="text-xl text-cyber-gray mb-8 max-w-3xl mx-auto">
                 Access a premium library of AI-ready MVP codebases. 
                 Skip the boilerplate, accelerate your development, and launch your ideas faster than ever.
               </p>
@@ -156,15 +164,22 @@ export const HomePage: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
                   >
+                  <GlassCard className="p-6 text-center">
+                    <stat.icon className="w-8 h-8 text-neon-cyan mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-cyber-white mb-1">
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
+                  >
                     <GlassCard className="p-6 text-center">
                       <stat.icon className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                       <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                         {stat.value}
                       </div>
                       <div className="text-sm text-gray-600 dark:text-gray-300">
-                        {stat.label}
+                    <div className="text-sm text-cyber-gray">
                       </div>
                     </GlassCard>
+                  </motion.div>
                   </motion.div>
                 ))}
               </div>
@@ -174,19 +189,20 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Featured MVPs */}
-      <section className="py-16 bg-gradient-to-b from-transparent to-white/50 dark:to-gray-900/50">
+      <section className="py-16 bg-gradient-to-b from-transparent to-midnight-800/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-cyber-white mb-4">
               Featured MVPs
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            <p className="text-lg text-cyber-gray max-w-2xl mx-auto">
               Discover our most popular and highly-rated MVP templates from our growing library.
             </p>
           </motion.div>
@@ -208,7 +224,11 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-16">
+      <section className="py-16 relative overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute -right-64 top-1/3 w-96 h-96 bg-neon-violet/10 rounded-full filter blur-[100px]"></div>
+        <div className="absolute -left-64 bottom-1/3 w-96 h-96 bg-neon-cyan/10 rounded-full filter blur-[100px]"></div>
+        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-12"
@@ -216,11 +236,12 @@ export const HomePage: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
+            viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-cyber-white mb-4">
               Why Choose MVP Library?
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            <p className="text-lg text-cyber-gray max-w-2xl mx-auto">
               We're not just another code marketplace. We're your development acceleration platform.
             </p>
           </motion.div>
@@ -230,6 +251,13 @@ export const HomePage: React.FC = () => {
               <motion.div
                 key={feature.title}
                 initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: index * 0.2 }}
+                viewport={{ once: true }}
+              >
+                <GlassCard className="p-8 text-center h-full card-3d">
+                <div className="w-16 h-16 bg-gradient-to-r from-neon-cyan to-neon-violet rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-neon-glow-sm">
+                  <feature.icon className="w-8 h-8 text-cyber-white" />
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: index * 0.2 }}
                 viewport={{ once: true }}
@@ -245,6 +273,15 @@ export const HomePage: React.FC = () => {
                     {feature.description}
                   </p>
                 </GlassCard>
+              <motion.div
+                key={mvp.id}
+                <h3 className="text-xl font-semibold text-cyber-white mb-4">
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: index * 0.2 }}
+                <p className="text-cyber-gray">
+              >
+                <MVPCard mvp={mvp} onClick={() => window.location.href = `/mvp/${mvp.id}`} />
+              </motion.div>
               </motion.div>
             ))}
           </div>
@@ -252,32 +289,32 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-purple-600">
+      <section className="py-16 bg-gradient-to-r from-neon-cyan to-neon-violet">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
+            viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+            <h2 className="text-3xl md:text-4xl font-bold text-midnight-900 mb-6">
               Ready to Accelerate Your Development?
             </h2>
-            <p className="text-xl text-blue-100 mb-8">
+            <p className="text-xl text-midnight-800 mb-8">
               Join thousands of developers who are building faster with our AI-ready MVP library.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <GlossyButton 
                 size="lg" 
-                variant="secondary"
-                className="bg-white text-blue-600 hover:bg-gray-100"
+                className="bg-midnight-900 text-neon-cyan hover:bg-midnight-800 border-2 border-neon-cyan"
               >
                 Get Started Free
               </GlossyButton>
               <GlossyButton 
                 size="lg" 
                 variant="outline"
-                className="border-white text-white hover:bg-white/10"
+                className="border-midnight-900 text-midnight-900 hover:bg-midnight-900/10"
               >
                 Become a Seller
               </GlossyButton>

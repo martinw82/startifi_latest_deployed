@@ -17,12 +17,12 @@ export const GlossyButton: React.FC<GlossyButtonProps> = ({
   className,
   ...props
 }) => {
-  const baseClasses = 'relative rounded-full font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const baseClasses = 'relative rounded-full font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-midnight-900';
   
   const variantClasses = {
-    primary: 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-purple-700 focus:ring-blue-500',
-    secondary: 'bg-gradient-to-r from-gray-600 to-gray-700 text-white shadow-lg hover:shadow-xl hover:from-gray-700 hover:to-gray-800 focus:ring-gray-500',
-    outline: 'border-2 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:ring-blue-500',
+    primary: 'bg-gradient-to-r from-neon-cyan to-neon-violet text-cyber-white shadow-neon-glow hover:shadow-neon-glow hover:from-neon-cyan hover:to-neon-violet focus:ring-neon-violet',
+    secondary: 'bg-gradient-to-r from-cyber-gray-600 to-cyber-gray-700 text-white shadow-lg hover:shadow-xl hover:from-cyber-gray-700 hover:to-cyber-gray-800 focus:ring-cyber-gray-500',
+    outline: 'border-2 border-neon-cyan text-neon-cyan hover:bg-neon-cyan/10 focus:ring-neon-cyan',
   };
 
   const sizeClasses = {
