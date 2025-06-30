@@ -258,9 +258,14 @@ export class MVPUploadService {
         return { success: false, error: validationResult.error }; // Return error message
       }
 
+      // Determine which bucket to use based on file purpose
+      // MVP files (source code) go to private 'mvp-files' bucket
+      // Preview images go to public 'mvp-preview-images' bucket for display on the site
+      const bucketName = filePurpose === 'image' ? 'mvp-preview-images' : 'mvp-files';
+      
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
-        .from('mvp-files')
+        .from(bucketName)
         .upload(path, file, {
           cacheControl: '3600',
           upsert: true
@@ -273,7 +278,7 @@ export class MVPUploadService {
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('mvp-files')
+        .from(bucketName)
         .getPublicUrl(data.path);
 
       return {
