@@ -817,6 +817,250 @@ export class GitHubService {
       return { success: false, message: error.message || 'An unexpected error occurred.' };
     }
   }
+
+  /**
+   * Admin-specific methods
+   */
+  static async getAllProfilesForAdmin(
+    filters?: { role?: string; sellerApproval?: boolean; search?: string }
+  ) {
+    try {
+      if (!await this.isAdmin()) {
+        throw new Error('Unauthorized access');
+      }
+
+      let query = supabase
+        .from('profiles')
+        .select(`
+          id,
+          email,
+          username,
+          display_name,
+          role,
+          is_seller_approved,
+          stripe_customer_id,
+          stripe_account_id,
+          downloads_remaining,
+          last_quota_reset_at,
+          created_at
+        `)
+        .order('created_at', { ascending: false });
+
+      // Apply filters if provided
+      if (filters?.role && filters.role !== 'all') {
+        query = query.eq('role', filters.role);
+      }
+
+      if (filters?.sellerApproval !== undefined) {
+        query = query.eq('is_seller_approved', filters.sellerApproval);
+      }
+
+      if (filters?.search) {
+        query = query.or(`email.ilike.%${filters.search}%,username.ilike.%${filters.search}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching user profiles:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getAllProfilesForAdmin:', error);
+      throw error;
+    }
+  }
+
+  static async updateUserProfileByAdmin(
+    userId: string,
+    updates: { role?: string; is_seller_approved?: boolean }
+  ) {
+    try {
+      if (!await this.isAdmin()) {
+        throw new Error('Unauthorized access');
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error updating user profile:', error);
+        throw error;
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error in updateUserProfileByAdmin:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getAdminAnalytics(period?: 'day' | 'week' | 'month' | 'year') {
+    try {
+      if (!await this.isAdmin()) {
+        throw new Error('Unauthorized access');
+      }
+
+      // Get total counts for key metrics
+      const [
+        { count: totalUsers },
+        { count: totalSellers },
+        { count: totalMVPs },
+        { count: totalDownloads },
+        { data: revenueData },
+        { data: mvpRatings },
+        { data: downloadTrend },
+        { data: userGrowth }
+      ] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('profiles').select('*', { count: 'exact', head: true })
+          .or('role.eq.seller,role.eq.both')
+          .eq('is_seller_approved', true),
+        supabase.from('mvps').select('*', { count: 'exact', head: true })
+          .eq('status', 'approved'),
+        supabase.from('downloads').select('*', { count: 'exact', head: true }),
+        supabase.from('stripe_orders').select('amount_total, created_at')
+          .order('created_at', { ascending: false }),
+        supabase.from('mvps').select('average_rating')
+          .eq('status', 'approved'),
+        // Get download trends (simplified - this would be more complex in production)
+        supabase.from('downloads')
+          .select('month_year, count(*)')
+          .group('month_year')
+          .order('month_year', { ascending: false })
+          .limit(12),
+        // Get user growth over time (simplified)
+        supabase.from('profiles')
+          .select('created_at')
+          .order('created_at', { ascending: false })
+      ]);
+
+      // Calculate total revenue
+      const totalRevenue = revenueData?.reduce((sum, order) => 
+        sum + (order.amount_total || 0), 0) || 0;
+      
+      // Calculate average rating
+      const allRatings = mvpRatings?.filter(mvp => mvp.average_rating > 0)
+        .map(mvp => mvp.average_rating) || [];
+      const averageRating = allRatings.length > 0
+        ? allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length
+        : 0;
+
+      // Prepare trend data
+      const downloadsByMonth = downloadTrend?.reduce((acc, item) => {
+        acc[item.month_year] = item.count;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // Group users by month for growth chart
+      const usersByMonth: Record<string, number> = {};
+      userGrowth?.forEach(user => {
+        const monthYear = new Date(user.created_at).toISOString().substring(0, 7); // YYYY-MM
+        usersByMonth[monthYear] = (usersByMonth[monthYear] || 0) + 1;
+      });
+
+      return {
+        counts: {
+          totalUsers,
+          totalSellers,
+          totalMVPs,
+          totalDownloads,
+          totalRevenue: totalRevenue / 100, // Convert from cents to dollars
+          averageRating
+        },
+        trends: {
+          downloads: downloadsByMonth,
+          users: usersByMonth,
+          // More trends could be added here
+        }
+      };
+    } catch (error: any) {
+      console.error('Error in getAdminAnalytics:', error);
+      throw error;
+    }
+  }
+
+  static async processPayout(payoutId: string) {
+    try {
+      if (!await this.isAdmin()) {
+        throw new Error('Unauthorized access');
+      }
+
+      // Call the process-payout Edge Function
+      const { data, error } = await supabase.functions.invoke('process-payout', {
+        body: { payoutId }
+      });
+
+      if (error) {
+        console.error('Error calling process-payout function:', error);
+        return { success: false, message: error.message || 'Failed to process payout' };
+      }
+
+      if (data?.success) {
+        return { success: true, message: data.message || 'Payout processing initiated' };
+      } else {
+        return { success: false, message: data?.message || 'Failed to process payout' };
+      }
+    } catch (error: any) {
+      console.error('Error in processPayout:', error);
+      return { success: false, message: error.message || 'An unexpected error occurred' };
+    }
+  }
+
+  static async getPendingPayouts() {
+    try {
+      if (!await this.isAdmin()) {
+        throw new Error('Unauthorized access');
+      }
+
+      const { data, error } = await supabase
+        .from('payouts')
+        .select(`
+          *,
+          profiles!payouts_seller_id_fkey(id, email, username, display_name)
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching pending payouts:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getPendingPayouts:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Helper method to check if current user is an admin
+   */
+  private static async isAdmin(): Promise<boolean> {
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return false;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+
+      return profile?.role === 'admin' || profile?.role === 'both';
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  }
 }
 
 // Deployment Service for one-click deploy
