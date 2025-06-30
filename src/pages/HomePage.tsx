@@ -164,22 +164,15 @@ export const HomePage: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
                   >
-                  <GlassCard className="p-6 text-center">
-                    <stat.icon className="w-8 h-8 text-neon-cyan mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-cyber-white mb-1">
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
-                  >
                     <GlassCard className="p-6 text-center">
-                      <stat.icon className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      <stat.icon className="w-8 h-8 text-neon-cyan mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-cyber-white mb-1">
                         {stat.value}
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-300">
-                    <div className="text-sm text-cyber-gray">
+                      <div className="text-sm text-cyber-gray">
+                        {stat.label}
                       </div>
                     </GlassCard>
-                  </motion.div>
                   </motion.div>
                 ))}
               </div>
@@ -195,8 +188,6 @@ export const HomePage: React.FC = () => {
             className="text-center mb-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
             viewport={{ once: true }}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-cyber-white mb-4">
@@ -236,7 +227,6 @@ export const HomePage: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            viewport={{ once: true }}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-cyber-white mb-4">
               Why Choose MVP Library?
@@ -256,32 +246,16 @@ export const HomePage: React.FC = () => {
                 viewport={{ once: true }}
               >
                 <GlassCard className="p-8 text-center h-full card-3d">
-                <div className="w-16 h-16 bg-gradient-to-r from-neon-cyan to-neon-violet rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-neon-glow-sm">
-                  <feature.icon className="w-8 h-8 text-cyber-white" />
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: index * 0.2 }}
-                viewport={{ once: true }}
-              >
-                <GlassCard className="p-8 text-center h-full">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <feature.icon className="w-8 h-8 text-white" />
+                  <div className="w-16 h-16 bg-gradient-to-r from-neon-cyan to-neon-violet rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-neon-glow-sm">
+                    <feature.icon className="w-8 h-8 text-cyber-white" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-xl font-semibold text-cyber-white mb-4">
                     {feature.title}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-300">
+                  <p className="text-cyber-gray">
                     {feature.description}
                   </p>
                 </GlassCard>
-              <motion.div
-                key={mvp.id}
-                <h3 className="text-xl font-semibold text-cyber-white mb-4">
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: index * 0.2 }}
-                <p className="text-cyber-gray">
-              >
-                <MVPCard mvp={mvp} onClick={() => window.location.href = `/mvp/${mvp.id}`} />
-              </motion.div>
               </motion.div>
             ))}
           </div>
@@ -295,7 +269,6 @@ export const HomePage: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
             viewport={{ once: true }}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-midnight-900 mb-6">
