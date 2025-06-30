@@ -69,7 +69,7 @@ interface PendingPayout {
 }
 
 export const AdminDashboardPage: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
+  const {  loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'mvps' | 'users' | 'analytics' | 'newsletter'>('overview');
   const [activeNewsletterTab, setActiveNewsletterTab] = useState<'types' | 'subscribers' | 'userSubscriptions'>('types');
