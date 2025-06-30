@@ -27,8 +27,8 @@ Deno.serve(async (req)=>{
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const requestBody = await req.json();
     console.log('create-buyer-repo-and-push-mvp: Received request body:', JSON.stringify(requestBody));
-    const { user_id, mvp_id, deployment_id, repo_name, create_only = false } = requestBody;
-    if (!user_id || !deployment_id || !repo_name) {
+    const { user_id, mvp_id, deployment_id, repo_name: requestedRepoName, create_only = false } = requestBody;
+    if (!user_id || !deployment_id || !requestedRepoName) {
       console.error('create-buyer-repo-and-push-mvp: Missing required fields in request body.');
       return new Response(JSON.stringify({
         error: 'Missing required fields: user_id, deployment_id, repo_name'
@@ -98,7 +98,7 @@ Deno.serve(async (req)=>{
     console.log('create-buyer-repo-and-push-mvp: GitHub token fetched.');
     console.log(`create-buyer-repo-and-push-mvp: Fetching GitHub username for user ${user_id}.`);
     const { data: userData, error: userError } = await supabase.from('profiles').select('github_username').eq('id', user_id).single();
-    if (userError || !userData?.github_username) {
+    if (userError || !userData) {
       console.error('create-buyer-repo-and-push-mvp: Error fetching GitHub username:', userError);
       await updateDeploymentStatus(supabase, deployment_id, 'failed', 'GitHub username not found');
       return new Response(JSON.stringify({
@@ -111,8 +111,27 @@ Deno.serve(async (req)=>{
         status: 400
       });
     }
-    const githubUsername = userData.github_username;
-    console.log(`create-buyer-repo-and-push-mvp: GitHub username fetched: ${githubUsername}.`);
+    
+    const githubUsername = userData.github_username || '';
+    if (!githubUsername) {
+      console.error('create-buyer-repo-and-push-mvp: GitHub username is empty');
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'GitHub username not found');
+      return new Response(JSON.stringify({
+        error: 'GitHub username not found. Please connect your GitHub account.'
+      }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: 400
+      });
+    }
+    
+    console.log(`create-buyer-repo-and-push-mvp: GitHub username fetched: ${githubUsername}`);
+    
+    // Use the repo_name from the request
+    const sanitizedRepoName = requestedRepoName.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/^[^a-zA-Z0-9]/, 'r').toLowerCase();
+    
     console.log(`create-buyer-repo-and-push-mvp: Fetching MVP data for MVP ID: ${mvp_id}.`);
     const { data: mvp, error: mvpError } = await supabase.from('mvps').select('*').eq('id', mvp_id).single();
     if (mvpError || !mvp) {
@@ -128,8 +147,7 @@ Deno.serve(async (req)=>{
         status: 500
       });
     }
-    console.log('create-buyer-repo-and-push-mvp: MVP data fetched.');
-    const sanitizedRepoName = repo_name.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/^[^a-zA-Z0-9]/, 'r').toLowerCase();
+    console.log('create-buyer-repo-and-push-mvp: MVP data fetched.');      
     console.log(`create-buyer-repo-and-push-mvp: Attempting to create GitHub repository: ${sanitizedRepoName}`);
     const createRepoResponse = await fetch('https://api.github.com/user/repos', {
       method: 'POST',
@@ -175,6 +193,7 @@ Deno.serve(async (req)=>{
     await supabase.from('deployments').update({
       github_repo_url: repoUrl,
       repo_owner: githubUsername,
+      repo_name: sanitizedRepoName,
       updated_at: new Date().toISOString()
     }).eq('id', deployment_id);
     console.log('create-buyer-repo-and-push-mvp: Deployment updated with repo URL.');
