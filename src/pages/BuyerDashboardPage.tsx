@@ -7,6 +7,7 @@ import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { APIService } from '../lib/api';
+import { formatDistanceToNow } from 'date-fns';
 import type { Download as DownloadType } from '../types';
 
 export const BuyerDashboardPage: React.FC = () => {
@@ -107,6 +108,7 @@ export const BuyerDashboardPage: React.FC = () => {
                 ) : plan ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Plan details */}
                       <div>
                         <p className="text-sm text-gray-600 dark:text-gray-300">Current Plan</p>
                         <p className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -116,6 +118,30 @@ export const BuyerDashboardPage: React.FC = () => {
                           {plan.description}
                         </p>
                       </div>
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Download Quota</p>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                          <span className="text-neon-green">{user.downloads_remaining}</span> / {plan.name === 'Basic' ? '5' : plan.name === 'Pro' ? '15' : '35'} remaining
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Resets {user.last_quota_reset_at ? 
+                            formatDistanceToNow(new Date(user.last_quota_reset_at), { addSuffix: true }) 
+                            : 'monthly'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Status</p>
+                        <div className="flex items-center">
+                          <span className={`inline-block w-2 h-2 rounded-full mr-2 ${plan.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {plan.isActive ? 'Active' : 'Inactive'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-600 dark:text-gray-300">Next Billing</p>
                         <p className="text-lg font-semibold text-gray-900 dark:text-white">

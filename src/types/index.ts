@@ -2,7 +2,12 @@
 export interface User {
   id: string;
   email: string;
-  username?: string; // Added: Optional username for the user
+  username?: string;
+  display_name?: string;
+  bio?: string;
+  profile_picture_url?: string;
+  website_url?: string;
+  social_links?: Record<string, string>;
   role: 'buyer' | 'seller' | 'admin' | 'both';
   stripe_customer_id?: string;
   stripe_account_id?: string;

@@ -2,6 +2,15 @@
 import { supabase } from './supabase';
 import type { User } from '../types';
 
+interface ProfileUpdates {
+  username?: string;
+  display_name?: string;
+  bio?: string;
+  profile_picture_url?: string;
+  website_url?: string;
+  social_links?: Record<string, string>;
+}
+
 export class AuthService {
   static async signUp(email: string, password: string, role: 'buyer' | 'seller' = 'buyer') {
     const { data, error } = await supabase.auth.signUp({
@@ -144,7 +153,7 @@ export class AuthService {
     return profile;
   }
 
-  static async updateProfile(updates: Partial<User>) {
+  static async updateProfile(updates: ProfileUpdates) {
     // Handle beta user updates
     const betaUser = localStorage.getItem('beta_user');
     if (betaUser) {
@@ -157,9 +166,17 @@ export class AuthService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
+    // Prepare social_links as JSONB if it exists
+    let processedUpdates = { ...updates };
+    
+    // Convert social_links to JSONB if it's an object
+    if (updates.social_links && typeof updates.social_links === 'object') {
+      processedUpdates.social_links = updates.social_links;
+    }
+    
     const { data, error } = await supabase
       .from('profiles')
-      .update(updates) // 'updates' object can contain username
+      .update(processedUpdates)
       .eq('id', user.id)
       .select()
       .single();

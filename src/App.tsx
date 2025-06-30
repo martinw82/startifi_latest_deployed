@@ -18,6 +18,7 @@ import { MyMVPsPage } from './pages/MyMVPsPage';
 import { ConnectStripePage } from './pages/ConnectStripePage';
 import { PayoutsPage } from './pages/PayoutsPage';
 import { GitHubAppCallbackPage } from './pages/GitHubAppCallbackPage'; // Import the new page
+import { SellerProfilePage } from './pages/SellerProfilePage'; // Import the Seller Profile page
 import { BuyerGitHubCallbackPage } from './pages/BuyerGitHubCallbackPage'; // Import the GitHub callback page
 import { BuyerNetlifyCallbackPage } from './pages/BuyerNetlifyCallbackPage'; // Import the Netlify callback page
 import { EditMVPPage } from './pages/EditMVPPage'; // Import the new EditMVPPage
@@ -61,6 +62,7 @@ const AppContent: React.FC = () => {
           <Route path="/connect-stripe" element={<ConnectStripePage />} />
           <Route path="/how-it-works" element={<PlaceholderPage pageName="How It Works" />} />
           <Route path="/stories" element={<PlaceholderPage pageName="Success Stories" />} />
+          <Route path="/seller/:username" element={<SellerProfilePage />} />
           <Route path="/sell" element={<SellerSignupPage />} />
           <Route path="/guidelines" element={<PlaceholderPage pageName="Seller Guidelines" />} />
           <Route path="/help" element={<PlaceholderPage pageName="Help Center" />} />
