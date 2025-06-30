@@ -139,6 +139,53 @@ export interface Deployment {
   netlify_site_id: string;
   netlify_deploy_id: string;
   status: 'initializing' | 'creating_repo' | 'pushing_code' | 'configuring_netlify' | 'deploying' | 'completed' | 'failed';
+}
+
+export interface RefundRequest {
+  id: string;
+  user_id: string;
+  subscription_id: string;
+  reason: string;
+  amount_requested: number;
+  status: 'pending' | 'approved' | 'rejected' | 'processed';
+  processed_by?: string;
+  processed_at?: string;
+  stripe_refund_id?: string;
+  created_at: string;
+  user?: {
+    email: string;
+    username?: string;
+  };
+  subscription?: {
+    plan_type: string;
+    stripe_subscription_id: string;
+  };
+}
+
+export interface Dispute {
+  id: string;
+  buyer_id: string;
+  seller_id: string;
+  mvp_id: string;
+  reason: string;
+  details: string;
+  status: 'open' | 'in_review' | 'resolved_buyer' | 'resolved_seller' | 'closed_no_action';
+  opened_at: string;
+  resolved_at?: string;
+  resolved_by?: string;
+  resolution_details?: string;
+  buyer?: {
+    email: string;
+    username?: string;
+  };
+  seller?: {
+    email: string;
+    username?: string;
+  };
+  mvp?: {
+    title: string;
+    slug: string;
+  };
   error_message?: string;
   custom_domain?: string;
   build_settings?: Record<string, any>;
