@@ -72,7 +72,7 @@ export const Header: React.FC = () => {
             {navItems.map((item) => (
               <Link key={item.label} to={item.href}>
                 <motion.button
-                  className="text-cyber-gray hover:text-neon-green transition-colors"
+                  className="text-cyber-gray hover:text-neon-green transition-colors text-gray-700 dark:text-cyber-white"
                   whileHover={{ scale: 1.1 }}
                 >
                   {item.label}
@@ -85,7 +85,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center space-x-4">
             {/* Search */}
             <motion.button
-              className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+              className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors text-gray-700 dark:text-cyber-white"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
@@ -98,7 +98,7 @@ export const Header: React.FC = () => {
               <div className="flex items-center space-x-3">
                 <Link to="/notifications">
                   <motion.button
-                    className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors relative"
+                    className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors relative text-gray-700 dark:text-cyber-white"
                     whileHover={{ scale: 1.1 }}
                     aria-label={`${unreadCount} unread notifications`}
                   >
@@ -120,7 +120,7 @@ export const Header: React.FC = () => {
                   {(user.role === 'admin' || user.role === 'both') && (
                     <Link to="/admin">
                       <motion.button
-                        className="p-2 rounded-full bg-neon-green/10 dark:bg-neon-green/20 border border-neon-green/30 dark:border-neon-green/40 hover:bg-neon-green/20 dark:hover:bg-neon-green/30 transition-colors"
+                        className="p-2 rounded-full bg-neon-green/10 dark:bg-neon-green/20 border border-neon-green/30 dark:border-neon-green/40 hover:bg-neon-green/20 dark:hover:bg-neon-green/30 transition-colors text-blue-600 dark:text-neon-green"
                         whileHover={{ scale: 1.1 }}
                         title="Admin Dashboard"
                       >
@@ -132,7 +132,7 @@ export const Header: React.FC = () => {
                   {/* User Settings Link */}
                   <Link to="/settings">
                     <motion.button
-                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors text-gray-700 dark:text-cyber-white"
                       whileHover={{ scale: 1.1 }}
                       title="User Settings"
                     >
@@ -142,7 +142,7 @@ export const Header: React.FC = () => {
 
                   <Link to="/dashboard">
                     <motion.button
-                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors text-gray-700 dark:text-cyber-white"
                       whileHover={{ scale: 1.1 }}
                     >
                       <User className="w-5 h-5 text-cyber-white" />
@@ -202,7 +202,7 @@ export const Header: React.FC = () => {
                   key={item.label}
                   to={item.href}
                   onClick={() => setIsMenuOpen(false)}
-                  className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors"
+                  className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors text-gray-700 dark:text-cyber-white"
                 >
                   {item.label}
                 </Link>
@@ -212,12 +212,12 @@ export const Header: React.FC = () => {
                   <Link
                     to="/dashboard"
                     onClick={() => setIsMenuOpen(false)}
-                    className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors"
+                    className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-color text-gray-700 dark:text-cyber-whites"
                   >
                     Dashboard
                   </Link>
                   <Link to="/notifications">
-                    <div className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors">
+                    <div className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors text-gray-700 dark:text-cyber-white">
                       Notifications
                       {unreadCount > 0 && (
                         <span className="inline-flex items-center justify-center ml-2 w-5 h-5 text-xs font-bold bg-neon-green text-midnight-900 rounded-full">
@@ -229,7 +229,7 @@ export const Header: React.FC = () => {
                   <Link
                     to="/settings"
                     onClick={() => setIsMenuOpen(false)}
-                    className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors"
+                    className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors text-gray-700 dark:text-cyber-white"
                   >
                     Settings
                   </Link>
@@ -237,7 +237,7 @@ export const Header: React.FC = () => {
                     <Link
                       to="/admin"
                       onClick={() => setIsMenuOpen(false)}
-                      className="block w-full text-left px-3 py-2 text-neon-green hover:text-neon-green/80 transition-colors"
+                      className="block w-full text-left px-3 py-2 text-neon-green hover:text-neon-green/80 transition-colors text-gray-700 dark:text-cyber-white"
                     >
                       Admin Dashboard
                     </Link>
