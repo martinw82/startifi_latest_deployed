@@ -10,12 +10,6 @@ export default {
         'dark-primary': '#0B0F19',
         'dark-secondary': '#1B1F33',
       },
-      backgroundColor: {
-        'light-primary': '#ffffff',
-        'light-secondary': '#f8fafc',
-        'dark-primary': '#0B0F19',
-        'dark-secondary': '#1B1F33',
-      },
       colors: {
         border: 'hsl(var(--border))',
         background: 'hsl(var(--background))',
@@ -118,10 +112,8 @@ export default {
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-light': 'linear-gradient(to right, #f8fafc, #ffffff)',
-        'gradient-light': 'linear-gradient(to right, #f8fafc, #ffffff)',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
         'cyber-grid': 'linear-gradient(rgba(124, 77, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(124, 77, 255, 0.1) 1px, transparent 1px)',
-        'light-grid': 'linear-gradient(rgba(226, 232, 240, 0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(226, 232, 240, 0.5) 1px, transparent 1px)',
         'light-grid': 'linear-gradient(rgba(226, 232, 240, 0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(226, 232, 240, 0.5) 1px, transparent 1px)',
       },
     },
