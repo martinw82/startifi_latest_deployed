@@ -30,7 +30,7 @@ import { GlossyButton } from '../components/ui/GlossyButton';
 import { NewsletterTypesManagement, UserSubscriptionsManagement, NewsletterSubscribersManagement } from '../components/admin';
 import { useAuth } from '../hooks/useAuth';
 import { NotificationService } from '../lib/api';
-import type { MVP, User } from '../types';
+import type { MVP, UserType } from '../types';
 import { supabase } from '../lib/supabase';
 import { APIService } from '../lib/api';
 
@@ -69,7 +69,7 @@ interface PendingPayout {
 }
 
 export const AdminDashboardPage: React.FC = () => {
-  const {  loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'mvps' | 'users' | 'analytics' | 'newsletter'>('overview');
   const [activeNewsletterTab, setActiveNewsletterTab] = useState<'types' | 'subscribers' | 'userSubscriptions'>('types');
