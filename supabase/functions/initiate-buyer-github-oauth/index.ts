@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     }
 
     // Construct the GitHub OAuth authorization URL
-    const origin = req.headers.get('origin') || 'http://localhost:5173';
+    const origin = req.headers.get('origin') || 'http://startifi.xyz:5173';
     const redirectUri = `${origin}/buyer-github-callback`;
     
     // Request scopes needed for repo creation and management
