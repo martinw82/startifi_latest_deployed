@@ -1159,7 +1159,6 @@ export class DisputeService {
 /**
  * Service for handling notifications
  */
-export class NotificationService {
   /**
    * Get notifications for a user
    * @param userId The user ID
