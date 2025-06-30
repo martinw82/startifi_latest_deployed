@@ -4,10 +4,18 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      backgroundColor: {
+        'light-primary': '#ffffff',
+        'light-secondary': '#f8fafc',
+        'dark-primary': '#0B0F19',
+        'dark-secondary': '#1B1F33',
+      },
       colors: {
         border: 'hsl(var(--border))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        'light-border': '#e2e8f0',
+        'dark-border': '#252B42',
         midnight: {
           700: '#252B42',
           800: '#1B1F33',
@@ -22,6 +30,7 @@ export default {
         },
         cyber: {
           white: '#FFFFFF',
+          black: '#111827',
           gray: '#8B9DC3',
           blue: '#4A5568',
         },
@@ -88,6 +97,7 @@ export default {
       },
       boxShadow: {
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+        'glass-light': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'glass-inset': 'inset 0 2px 4px 0 rgba(255, 255, 255, 0.06)',
         'neon-glow': '0 0 10px rgba(0, 229, 255, 0.5), 0 0 20px rgba(0, 229, 255, 0.3)',
         'neon-glow-sm': '0 0 5px rgba(0, 229, 255, 0.5), 0 0 10px rgba(0, 229, 255, 0.3)',
@@ -97,8 +107,10 @@ export default {
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-light': 'linear-gradient(to right, #f8fafc, #ffffff)',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
         'cyber-grid': 'linear-gradient(rgba(124, 77, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(124, 77, 255, 0.1) 1px, transparent 1px)',
+        'light-grid': 'linear-gradient(rgba(226, 232, 240, 0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(226, 232, 240, 0.5) 1px, transparent 1px)',
       },
     },
   },
