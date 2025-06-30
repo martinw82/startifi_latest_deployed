@@ -498,6 +498,664 @@ export class APIService {
     }
   }
 }
+
+// Notification Service for in-app notifications
+export class NotificationService {
+  static async createNotification(notificationData: {
+    user_id: string;
+    type: string;
+    message: string;
+    link?: string;
+  }): Promise<{ success: boolean; notification?: any; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert([{
+          user_id: notificationData.user_id,
+          type: notificationData.type,
+          message: notificationData.message,
+          link: notificationData.link,
+          read: false
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating notification:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, notification: data };
+    } catch (error: any) {
+      console.error('Error in createNotification:', error);
+      return { success: false, error: error.message || 'Failed to create notification' };
+    }
+  }
+
+  static async getNotifications(userId: string, read?: boolean): Promise<any[]> {
+    try {
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (read !== undefined) {
+        query = query.eq('read', read);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getNotifications:', error);
+      return [];
+    }
+  }
+
+  static async getUnreadNotificationCount(userId: string): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('read', false);
+
+      if (error) {
+        console.error('Error counting unread notifications:', error);
+        return 0;
+      }
+
+      return count || 0;
+    } catch (error: any) {
+      console.error('Error in getUnreadNotificationCount:', error);
+      return 0;
+    }
+  }
+
+  static async markNotificationAsRead(notificationId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ 
+          read: true, 
+          seen_at: new Date().toISOString() 
+        })
+        .eq('id', notificationId);
+
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error in markNotificationAsRead:', error);
+      return { success: false, error: error.message || 'Failed to mark notification as read' };
+    }
+  }
+
+  static async markAllNotificationsAsRead(userId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ 
+          read: true, 
+          seen_at: new Date().toISOString() 
+        })
+        .eq('user_id', userId)
+        .eq('read', false);
+
+      if (error) {
+        console.error('Error marking all notifications as read:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error in markAllNotificationsAsRead:', error);
+      return { success: false, error: error.message || 'Failed to mark all notifications as read' };
+    }
+  }
+}
+
+// Refund Request Service
+export class RefundService {
+  static async submitRefundRequest(data: { 
+    userId: string; 
+    subscriptionId: string; 
+    reason: string; 
+    amountRequested: number 
+  }): Promise<{ success: boolean; message: string; refundRequest?: any }> {
+    try {
+      // Validate the data
+      if (!data.userId) throw new Error('User ID is required');
+      if (!data.subscriptionId) throw new Error('Subscription ID is required');
+      if (!data.reason) throw new Error('Reason is required');
+      if (!data.amountRequested || data.amountRequested <= 0) {
+        throw new Error('Amount requested must be greater than zero');
+      }
+
+      // Insert the refund request
+      const { data: refundRequest, error } = await supabase
+        .from('refund_requests')
+        .insert([{
+          user_id: data.userId,
+          subscription_id: data.subscriptionId,
+          reason: data.reason,
+          amount_requested: data.amountRequested,
+          status: 'pending'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error submitting refund request:', error);
+        return { success: false, message: error.message };
+      }
+
+      // Notify the admin team of the new refund request
+      try {
+        // Get all admin users
+        const { data: admins } = await supabase
+          .from('profiles')
+          .select('id')
+          .in('role', ['admin', 'both']);
+
+        // Create notification for each admin
+        if (admins && admins.length > 0) {
+          const notifications = admins.map(admin => ({
+            user_id: admin.id,
+            type: 'refund_request',
+            message: `New refund request submitted for $${data.amountRequested.toFixed(2)}`,
+            link: '/admin?tab=refunds',
+            read: false
+          }));
+
+          await supabase.from('notifications').insert(notifications);
+        }
+      } catch (notificationError) {
+        console.warn('Failed to notify admins of refund request:', notificationError);
+        // Continue despite notification error
+      }
+
+      return { 
+        success: true, 
+        message: 'Refund request submitted successfully', 
+        refundRequest 
+      };
+    } catch (error: any) {
+      console.error('Error in submitRefundRequest:', error);
+      return { success: false, message: error.message || 'Failed to submit refund request' };
+    }
+  }
+
+  static async getUserRefundRequests(userId: string): Promise<RefundRequest[]> {
+    try {
+      const { data, error } = await supabase
+        .from('refund_requests')
+        .select(`
+          *,
+          subscription:subscriptions(plan_type, stripe_subscription_id)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching user refund requests:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getUserRefundRequests:', error);
+      return [];
+    }
+  }
+
+  static async getRefundRequests(status?: 'pending' | 'approved' | 'rejected' | 'processed'): Promise<RefundRequest[]> {
+    try {
+      let query = supabase
+        .from('refund_requests')
+        .select(`
+          *,
+          user:profiles!refund_requests_user_id_fkey(email, username),
+          subscription:subscriptions(plan_type, stripe_subscription_id)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching refund requests:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getRefundRequests:', error);
+      return [];
+    }
+  }
+
+  static async updateRefundRequestStatus(
+    requestId: string, 
+    status: 'approved' | 'rejected' | 'processed', 
+    processedBy: string, 
+    stripeRefundId?: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      // Get the current refund request to check its status
+      const { data: currentRequest, error: fetchError } = await supabase
+        .from('refund_requests')
+        .select('status, user_id, amount_requested')
+        .eq('id', requestId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching current refund request:', fetchError);
+        return { success: false, message: 'Refund request not found' };
+      }
+
+      // Only allow updates if current status is 'pending' or if changing from 'approved' to 'processed'
+      if (currentRequest.status !== 'pending' && 
+          !(currentRequest.status === 'approved' && status === 'processed')) {
+        return { success: false, message: `Cannot update request with status '${currentRequest.status}' to '${status}'` };
+      }
+
+      // Prepare the update data
+      const updateData: Record<string, any> = {
+        status: status,
+        processed_by: processedBy
+      };
+
+      // Add processed_at and stripe_refund_id if applicable
+      if (status === 'approved' || status === 'processed') {
+        updateData.processed_at = new Date().toISOString();
+      }
+
+      if (status === 'processed' && stripeRefundId) {
+        updateData.stripe_refund_id = stripeRefundId;
+      }
+
+      // Update the refund request
+      const { error } = await supabase
+        .from('refund_requests')
+        .update(updateData)
+        .eq('id', requestId);
+
+      if (error) {
+        console.error('Error updating refund request:', error);
+        return { success: false, message: error.message };
+      }
+
+      // Notify the user about the status change
+      try {
+        let notificationMessage = '';
+        if (status === 'approved') {
+          notificationMessage = 'Your refund request has been approved and will be processed soon.';
+        } else if (status === 'rejected') {
+          notificationMessage = 'Your refund request has been rejected.';
+        } else if (status === 'processed') {
+          notificationMessage = `Your refund of $${currentRequest.amount_requested.toFixed(2)} has been processed.`;
+        }
+
+        if (notificationMessage) {
+          await NotificationService.createNotification({
+            user_id: currentRequest.user_id,
+            type: `refund_${status}`,
+            message: notificationMessage
+          });
+        }
+      } catch (notificationError) {
+        console.warn('Failed to send notification about refund status change:', notificationError);
+        // Continue despite notification error
+      }
+
+      return { success: true, message: `Refund request marked as ${status}` };
+    } catch (error: any) {
+      console.error('Error in updateRefundRequestStatus:', error);
+      return { success: false, message: error.message || 'Failed to update refund request status' };
+    }
+  }
+
+  static async processRefund(
+    requestId: string, 
+    adminId: string
+  ): Promise<{ success: boolean; message: string; refundId?: string }> {
+    try {
+      // Get the refund request details
+      const { data: request, error: fetchError } = await supabase
+        .from('refund_requests')
+        .select(`
+          id,
+          user_id,
+          subscription_id,
+          amount_requested,
+          status,
+          subscription:subscriptions(stripe_subscription_id)
+        `)
+        .eq('id', requestId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching refund request:', fetchError);
+        return { success: false, message: 'Refund request not found' };
+      }
+
+      // Only allow processing if status is 'approved'
+      if (request.status !== 'approved') {
+        return { success: false, message: `Cannot process refund with status '${request.status}', must be 'approved'` };
+      }
+
+      // Check if we have the Stripe subscription ID
+      if (!request.subscription?.stripe_subscription_id) {
+        return { success: false, message: 'No Stripe subscription ID found for this refund' };
+      }
+
+      // In a real implementation, here we would:
+      // 1. Call Stripe API to process the actual refund
+      // 2. Get the refund ID from Stripe response
+      // 3. Update the refund request with status 'processed' and the Stripe refund ID
+
+      // For now, we'll simulate this with a mock refund ID
+      const mockRefundId = `re_mock_${Date.now()}`;
+
+      // Update the refund request status to 'processed'
+      const result = await this.updateRefundRequestStatus(
+        requestId,
+        'processed',
+        adminId,
+        mockRefundId
+      );
+
+      if (!result.success) {
+        return result;
+      }
+
+      return { 
+        success: true, 
+        message: 'Refund processed successfully', 
+        refundId: mockRefundId 
+      };
+    } catch (error: any) {
+      console.error('Error in processRefund:', error);
+      return { success: false, message: error.message || 'Failed to process refund' };
+    }
+  }
+}
+
+// Dispute Service
+export class DisputeService {
+  static async submitDispute(data: { 
+    buyerId: string; 
+    sellerId: string; 
+    mvpId: string; 
+    reason: string; 
+    details: string 
+  }): Promise<{ success: boolean; message: string; dispute?: any }> {
+    try {
+      // Validate the data
+      if (!data.buyerId) throw new Error('Buyer ID is required');
+      if (!data.sellerId) throw new Error('Seller ID is required');
+      if (!data.mvpId) throw new Error('MVP ID is required');
+      if (!data.reason) throw new Error('Reason is required');
+      if (!data.details) throw new Error('Details are required');
+
+      // Insert the dispute
+      const { data: dispute, error } = await supabase
+        .from('disputes')
+        .insert([{
+          buyer_id: data.buyerId,
+          seller_id: data.sellerId,
+          mvp_id: data.mvpId,
+          reason: data.reason,
+          details: data.details,
+          status: 'open'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error submitting dispute:', error);
+        return { success: false, message: error.message };
+      }
+
+      // Notify both the seller and admins about the new dispute
+      try {
+        // Notify seller
+        await NotificationService.createNotification({
+          user_id: data.sellerId,
+          type: 'new_dispute',
+          message: `A buyer has opened a dispute regarding one of your MVPs`,
+          link: `/disputes/${dispute.id}`
+        });
+
+        // Get all admin users
+        const { data: admins } = await supabase
+          .from('profiles')
+          .select('id')
+          .in('role', ['admin', 'both']);
+
+        // Create notification for each admin
+        if (admins && admins.length > 0) {
+          const notifications = admins.map(admin => ({
+            user_id: admin.id,
+            type: 'new_dispute',
+            message: `New dispute opened between buyer and seller`,
+            link: '/admin?tab=disputes',
+            read: false
+          }));
+
+          await supabase.from('notifications').insert(notifications);
+        }
+      } catch (notificationError) {
+        console.warn('Failed to send notifications about new dispute:', notificationError);
+        // Continue despite notification error
+      }
+
+      return { 
+        success: true, 
+        message: 'Dispute submitted successfully', 
+        dispute 
+      };
+    } catch (error: any) {
+      console.error('Error in submitDispute:', error);
+      return { success: false, message: error.message || 'Failed to submit dispute' };
+    }
+  }
+
+  static async getUserDisputes(userId: string): Promise<Dispute[]> {
+    try {
+      const { data, error } = await supabase
+        .from('disputes')
+        .select(`
+          *,
+          buyer:profiles!disputes_buyer_id_fkey(email, username),
+          seller:profiles!disputes_seller_id_fkey(email, username),
+          mvp:mvps(title, slug)
+        `)
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+        .order('opened_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching user disputes:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getUserDisputes:', error);
+      return [];
+    }
+  }
+
+  static async getDisputes(status?: 'open' | 'in_review' | 'resolved_buyer' | 'resolved_seller' | 'closed_no_action'): Promise<Dispute[]> {
+    try {
+      let query = supabase
+        .from('disputes')
+        .select(`
+          *,
+          buyer:profiles!disputes_buyer_id_fkey(email, username),
+          seller:profiles!disputes_seller_id_fkey(email, username),
+          mvp:mvps(title, slug)
+        `)
+        .order('opened_at', { ascending: false });
+
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching disputes:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getDisputes:', error);
+      return [];
+    }
+  }
+
+  static async getDisputeById(disputeId: string): Promise<Dispute | null> {
+    try {
+      const { data, error } = await supabase
+        .from('disputes')
+        .select(`
+          *,
+          buyer:profiles!disputes_buyer_id_fkey(email, username),
+          seller:profiles!disputes_seller_id_fkey(email, username),
+          mvp:mvps(title, slug)
+        `)
+        .eq('id', disputeId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching dispute:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Error in getDisputeById:', error);
+      return null;
+    }
+  }
+
+  static async updateDisputeStatus(
+    disputeId: string, 
+    status: 'in_review' | 'resolved_buyer' | 'resolved_seller' | 'closed_no_action', 
+    resolvedBy: string, 
+    resolutionDetails?: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      // Get the current dispute to check its status and get user IDs
+      const { data: currentDispute, error: fetchError } = await supabase
+        .from('disputes')
+        .select('status, buyer_id, seller_id, mvp_id')
+        .eq('id', disputeId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching current dispute:', fetchError);
+        return { success: false, message: 'Dispute not found' };
+      }
+
+      // Only allow updates if current status is 'open' or 'in_review'
+      if (currentDispute.status !== 'open' && currentDispute.status !== 'in_review') {
+        return { success: false, message: `Cannot update dispute with status '${currentDispute.status}'` };
+      }
+
+      // Prepare the update data
+      const updateData: Record<string, any> = {
+        status: status,
+        resolved_by: resolvedBy
+      };
+
+      // Add resolution details if provided
+      if (resolutionDetails) {
+        updateData.resolution_details = resolutionDetails;
+      }
+
+      // Add resolved_at timestamp if the dispute is being resolved
+      if (status !== 'in_review') {
+        updateData.resolved_at = new Date().toISOString();
+      }
+
+      // Update the dispute
+      const { error } = await supabase
+        .from('disputes')
+        .update(updateData)
+        .eq('id', disputeId);
+
+      if (error) {
+        console.error('Error updating dispute:', error);
+        return { success: false, message: error.message };
+      }
+
+      // Notify both buyer and seller about the status change
+      try {
+        let buyerMessage = '';
+        let sellerMessage = '';
+
+        if (status === 'in_review') {
+          buyerMessage = 'Your dispute is now under review by our team.';
+          sellerMessage = 'A dispute involving your MVP is now under review by our team.';
+        } else if (status === 'resolved_buyer') {
+          buyerMessage = 'Your dispute has been resolved in your favor.';
+          sellerMessage = 'A dispute has been resolved in favor of the buyer.';
+        } else if (status === 'resolved_seller') {
+          buyerMessage = 'Your dispute has been resolved in favor of the seller.';
+          sellerMessage = 'A dispute has been resolved in your favor.';
+        } else if (status === 'closed_no_action') {
+          buyerMessage = 'Your dispute has been closed without further action.';
+          sellerMessage = 'A dispute involving your MVP has been closed without further action.';
+        }
+
+        // Notify buyer
+        if (buyerMessage) {
+          await NotificationService.createNotification({
+            user_id: currentDispute.buyer_id,
+            type: `dispute_${status}`,
+            message: buyerMessage,
+            link: `/disputes/${disputeId}`
+          });
+        }
+
+        // Notify seller
+        if (sellerMessage) {
+          await NotificationService.createNotification({
+            user_id: currentDispute.seller_id,
+            type: `dispute_${status}`,
+            message: sellerMessage,
+            link: `/disputes/${disputeId}`
+          });
+        }
+      } catch (notificationError) {
+        console.warn('Failed to send notifications about dispute status change:', notificationError);
+        // Continue despite notification error
+      }
+
+      return { success: true, message: `Dispute status updated to ${status}` };
+    } catch (error: any) {
+      console.error('Error in updateDisputeStatus:', error);
+      return { success: false, message: error.message || 'Failed to update dispute status' };
+    }
+  }
+}
+
 /**
  * Service for handling notifications
  */

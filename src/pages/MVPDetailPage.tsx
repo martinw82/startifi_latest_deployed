@@ -347,7 +347,7 @@ export const MVPDetailPage: React.FC = () => {
               <div className="flex flex-wrap gap-4">
                 <GlossyButton
                   onClick={handleDeployToNetlify}
-                  disabled={isDeploying || !auth.user}
+                  rel="noopener noreferrer" 
                   className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 dark:focus:ring-offset-gray-800 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDeploying ? (
@@ -435,6 +435,14 @@ export const MVPDetailPage: React.FC = () => {
               <p className={`mt-3 text-sm ${typeof downloadMessage === 'string' && downloadMessage.startsWith('Your download will begin shortly') ? '' : 'text-red-600 dark:text-red-400'}`}>
                 {downloadMessage}
               </p>
+              {user && (
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Having issues with this MVP? 
+                  <Link to={`/dispute/${mvp.id}`} className="ml-1 text-neon-green hover:underline">
+                    Report a problem
+                  </Link>
+                </p>
+              )}
             )}
             {!auth.user && !isDownloading && (
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">

@@ -644,6 +644,8 @@ export const AdminDashboardPage: React.FC = () => {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'mvps', label: 'MVP Reviews', icon: Package },
+    { id: 'refunds', label: 'Refund Requests', icon: DollarSign },
+    { id: 'disputes', label: 'Disputes', icon: AlertCircle },
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: PieChart },
   ];
@@ -1071,6 +1073,16 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
             </GlassCard>
           </motion.div>
+        )}
+        
+        {/* Refund Requests Tab */}
+        {activeTab === 'refunds' && (
+          <RefundRequestsTab />
+        )}
+        
+        {/* Disputes Tab */}
+        {activeTab === 'disputes' && (
+          <DisputesTab />
         )}
 
         {/* Users Tab */}
@@ -1527,6 +1539,590 @@ export const AdminDashboardPage: React.FC = () => {
         )}
       </div>
     </div>
+  );
+};
+
+// Refund Requests Tab Component
+const RefundRequestsTab: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
+  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'processed'>('pending');
+  
+  useEffect(() => {
+    loadRefundRequests();
+  }, [filter]);
+  
+  const loadRefundRequests = async () => {
+    try {
+      setLoading(true);
+      const requests = await RefundService.getRefundRequests(filter === 'all' ? undefined : filter);
+      setRefundRequests(requests);
+    } catch (error) {
+      console.error('Error loading refund requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateStatus = async (requestId: string, status: 'approved' | 'rejected') => {
+    try {
+      setProcessingRequest(requestId);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      const result = await RefundService.updateRefundRequestStatus(
+        requestId,
+        status,
+        user.id
+      );
+      
+      if (result.success) {
+        // Refresh the list
+        loadRefundRequests();
+      } else {
+        alert(result.message);
+      }
+    } catch (error: any) {
+      console.error('Error updating refund status:', error);
+      alert(error.message || 'Failed to update refund status');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+  
+  const handleProcessRefund = async (requestId: string) => {
+    try {
+      setProcessingRequest(requestId);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      const result = await RefundService.processRefund(requestId, user.id);
+      
+      if (result.success) {
+        alert(`Refund processed successfully. Refund ID: ${result.refundId}`);
+        // Refresh the list
+        loadRefundRequests();
+      } else {
+        alert(result.message);
+      }
+    } catch (error: any) {
+      console.error('Error processing refund:', error);
+      alert(error.message || 'Failed to process refund');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      case 'rejected':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+      case 'processed':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+      default:
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+    }
+  };
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.2 }}
+    >
+      <GlassCard className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Refund Request Management
+          </h2>
+          <div className="flex space-x-2">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as any)}
+              className="px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-sm"
+            >
+              <option value="all">All Requests</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="processed">Processed</option>
+            </select>
+            <GlossyButton
+              size="sm"
+              variant="outline"
+              onClick={loadRefundRequests}
+            >
+              Refresh
+            </GlossyButton>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">Loading refund requests...</p>
+          </div>
+        ) : refundRequests.length === 0 ? (
+          <div className="text-center py-12">
+            <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No refund requests found</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              {filter === 'pending' 
+                ? "There are no pending refund requests at the moment." 
+                : `No refund requests with '${filter}' status.`}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {refundRequests.map((request) => (
+              <div 
+                key={request.id} 
+                className="border border-white/10 rounded-xl p-6 hover:bg-white/5 transition-colors"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4">
+                  <div className="flex items-start mb-4 lg:mb-0">
+                    <div className="bg-midnight-700 p-2 rounded-lg mr-3">
+                      <DollarSign className="w-6 h-6 text-neon-green" />
+                    </div>
+                    <div>
+                      <div className="flex items-center">
+                        <h3 className="text-lg font-semibold text-white mr-3">
+                          ${request.amount_requested.toFixed(2)} Refund Request
+                        </h3>
+                        <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${getStatusColor(request.status)}`}>
+                          <span className="font-medium capitalize">{request.status}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-400 mt-1">
+                        From: {request.user?.username || request.user?.email || 'Unknown User'}
+                        {' · '}
+                        Subscription: {request.subscription?.plan_type} Plan
+                        {' · '}
+                        Submitted: {new Date(request.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    {request.status === 'pending' && (
+                      <>
+                        <GlossyButton
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          disabled={!!processingRequest}
+                          onClick={() => handleUpdateStatus(request.id, 'approved')}
+                        >
+                          {processingRequest === request.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                          )}
+                          <span>Approve</span>
+                        </GlossyButton>
+                        
+                        <GlossyButton
+                          size="sm"
+                          className="bg-red-600 hover:bg-red-700"
+                          disabled={!!processingRequest}
+                          onClick={() => handleUpdateStatus(request.id, 'rejected')}
+                        >
+                          {processingRequest === request.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 mr-1" />
+                          )}
+                          <span>Reject</span>
+                        </GlossyButton>
+                      </>
+                    )}
+                    
+                    {request.status === 'approved' && (
+                      <GlossyButton
+                        size="sm"
+                        disabled={!!processingRequest}
+                        onClick={() => handleProcessRefund(request.id)}
+                      >
+                        {processingRequest === request.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <DollarSign className="w-4 h-4 mr-1" />
+                        )}
+                        <span>Process Refund</span>
+                      </GlossyButton>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-white/5 dark:bg-midnight-800/20 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-2">Reason:</h4>
+                  <p className="text-gray-300">{request.reason}</p>
+                </div>
+                
+                {request.processed_at && (
+                  <div className="mt-4 text-sm text-gray-400">
+                    <span className="font-medium text-neon-cyan">Processed:</span> {new Date(request.processed_at).toLocaleString()}
+                    {request.stripe_refund_id && (
+                      <span className="ml-3">
+                        <span className="font-medium text-neon-cyan">Refund ID:</span> {request.stripe_refund_id}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
+    </motion.div>
+  );
+};
+
+// Disputes Tab Component
+const DisputesTab: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [processingDispute, setProcessingDispute] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'open' | 'in_review' | 'resolved_buyer' | 'resolved_seller' | 'closed_no_action'>('open');
+  const [resolutionDetails, setResolutionDetails] = useState('');
+  const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null);
+  const [showResolutionModal, setShowResolutionModal] = useState(false);
+  const [resolutionAction, setResolutionAction] = useState<'resolved_buyer' | 'resolved_seller' | 'closed_no_action' | null>(null);
+  
+  useEffect(() => {
+    loadDisputes();
+  }, [filter]);
+  
+  const loadDisputes = async () => {
+    try {
+      setLoading(true);
+      const loadedDisputes = await DisputeService.getDisputes(filter === 'all' ? undefined : filter);
+      setDisputes(loadedDisputes);
+    } catch (error) {
+      console.error('Error loading disputes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const openResolutionModal = (disputeId: string, action: 'resolved_buyer' | 'resolved_seller' | 'closed_no_action') => {
+    setSelectedDisputeId(disputeId);
+    setResolutionAction(action);
+    setResolutionDetails('');
+    setShowResolutionModal(true);
+  };
+  
+  const closeResolutionModal = () => {
+    setShowResolutionModal(false);
+    setSelectedDisputeId(null);
+    setResolutionAction(null);
+    setResolutionDetails('');
+  };
+  
+  const submitResolution = async () => {
+    if (!selectedDisputeId || !resolutionAction) return;
+    
+    try {
+      setProcessingDispute(selectedDisputeId);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      const result = await DisputeService.updateDisputeStatus(
+        selectedDisputeId,
+        resolutionAction,
+        user.id,
+        resolutionDetails
+      );
+      
+      if (result.success) {
+        closeResolutionModal();
+        loadDisputes();
+      } else {
+        alert(result.message);
+      }
+    } catch (error: any) {
+      console.error('Error updating dispute:', error);
+      alert(error.message || 'Failed to update dispute');
+    } finally {
+      setProcessingDispute(null);
+    }
+  };
+  
+  const handleInReview = async (disputeId: string) => {
+    try {
+      setProcessingDispute(disputeId);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      const result = await DisputeService.updateDisputeStatus(
+        disputeId,
+        'in_review',
+        user.id
+      );
+      
+      if (result.success) {
+        // Refresh the list
+        loadDisputes();
+      } else {
+        alert(result.message);
+      }
+    } catch (error: any) {
+      console.error('Error updating dispute status:', error);
+      alert(error.message || 'Failed to update dispute status');
+    } finally {
+      setProcessingDispute(null);
+    }
+  };
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'resolved_buyer':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      case 'resolved_seller':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
+      case 'closed_no_action':
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
+      case 'in_review':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+      default: // open
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+    }
+  };
+  
+  const getStatusText = (status: string): string => {
+    switch (status) {
+      case 'open':
+        return 'Open';
+      case 'in_review':
+        return 'In Review';
+      case 'resolved_buyer':
+        return 'Resolved (Buyer)';
+      case 'resolved_seller':
+        return 'Resolved (Seller)';
+      case 'closed_no_action':
+        return 'Closed';
+      default:
+        return status.replace(/_/g, ' ');
+    }
+  };
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.2 }}
+    >
+      <GlassCard className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Dispute Management
+          </h2>
+          <div className="flex space-x-2">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as any)}
+              className="px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg text-sm"
+            >
+              <option value="all">All Disputes</option>
+              <option value="open">Open</option>
+              <option value="in_review">In Review</option>
+              <option value="resolved_buyer">Resolved (Buyer)</option>
+              <option value="resolved_seller">Resolved (Seller)</option>
+              <option value="closed_no_action">Closed</option>
+            </select>
+            <GlossyButton
+              size="sm"
+              variant="outline"
+              onClick={loadDisputes}
+            >
+              Refresh
+            </GlossyButton>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">Loading disputes...</p>
+          </div>
+        ) : disputes.length === 0 ? (
+          <div className="text-center py-12">
+            <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No disputes found</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              {filter === 'open' 
+                ? "There are no open disputes at the moment." 
+                : `No disputes with '${filter.replace(/_/g, ' ')}' status.`}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {disputes.map((dispute) => (
+              <div 
+                key={dispute.id} 
+                className="border border-white/10 rounded-xl p-6 hover:bg-white/5 transition-colors"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-4">
+                  <div className="flex items-start mb-4 lg:mb-0">
+                    <div className="bg-midnight-700 p-2 rounded-lg mr-3 mt-1">
+                      <AlertTriangle className="w-6 h-6 text-neon-green" />
+                    </div>
+                    <div>
+                      <div className="flex items-center flex-wrap gap-2">
+                        <h3 className="text-lg font-semibold text-white mr-2">
+                          Dispute: {dispute.mvp?.title || 'Unknown MVP'}
+                        </h3>
+                        <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${getStatusColor(dispute.status)}`}>
+                          <span className="font-medium">{getStatusText(dispute.status)}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Buyer: {dispute.buyer?.username || dispute.buyer?.email || 'Unknown'}
+                        {' · '}
+                        Seller: {dispute.seller?.username || dispute.seller?.email || 'Unknown'}
+                        {' · '}
+                        Opened: {new Date(dispute.opened_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <Link to={`/disputes/${dispute.id}`}>
+                      <GlossyButton size="sm" variant="outline">
+                        <Eye className="w-4 h-4 mr-1" />
+                        <span>View</span>
+                      </GlossyButton>
+                    </Link>
+                    
+                    {dispute.status === 'open' && (
+                      <GlossyButton
+                        size="sm"
+                        disabled={!!processingDispute}
+                        onClick={() => handleInReview(dispute.id)}
+                      >
+                        {processingDispute === dispute.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Clock className="w-4 h-4 mr-1" />
+                        )}
+                        <span>Start Review</span>
+                      </GlossyButton>
+                    )}
+                    
+                    {dispute.status === 'in_review' && (
+                      <div className="flex space-x-2">
+                        <GlossyButton
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          disabled={!!processingDispute}
+                          onClick={() => openResolutionModal(dispute.id, 'resolved_buyer')}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          <span>Buyer</span>
+                        </GlossyButton>
+                        
+                        <GlossyButton
+                          size="sm"
+                          className="bg-purple-600 hover:bg-purple-700"
+                          disabled={!!processingDispute}
+                          onClick={() => openResolutionModal(dispute.id, 'resolved_seller')}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          <span>Seller</span>
+                        </GlossyButton>
+                        
+                        <GlossyButton
+                          size="sm"
+                          className="bg-gray-600 hover:bg-gray-700"
+                          disabled={!!processingDispute}
+                          onClick={() => openResolutionModal(dispute.id, 'closed_no_action')}
+                        >
+                          <AlertCircle className="w-4 h-4 mr-1" />
+                          <span>Close</span>
+                        </GlossyButton>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-white/5 dark:bg-midnight-800/20 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-2">Reason: {dispute.reason}</h4>
+                  <p className="text-gray-300 line-clamp-3">{dispute.details}</p>
+                </div>
+                
+                {dispute.resolution_details && (
+                  <div className="mt-4 p-4 bg-white/5 dark:bg-midnight-800/20 rounded-lg border-l-2 border-neon-green">
+                    <h4 className="text-sm font-medium text-white mb-2">Resolution:</h4>
+                    <p className="text-gray-300">{dispute.resolution_details}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
+      
+      {/* Resolution Modal */}
+      {showResolutionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-midnight-800 rounded-lg shadow-lg max-w-lg w-full p-6">
+            <h3 className="text-xl font-bold text-white mb-4">
+              Resolve Dispute
+              {resolutionAction === 'resolved_buyer' && ' (in favor of buyer)'}
+              {resolutionAction === 'resolved_seller' && ' (in favor of seller)'}
+              {resolutionAction === 'closed_no_action' && ' (no action)'}
+            </h3>
+            
+            <p className="text-gray-300 mb-4">
+              Please provide details about the resolution decision:
+            </p>
+            
+            <textarea
+              value={resolutionDetails}
+              onChange={(e) => setResolutionDetails(e.target.value)}
+              rows={5}
+              className="w-full p-3 bg-midnight-900 border border-white/20 rounded-lg text-white mb-6"
+              placeholder="Enter resolution details here..."
+            />
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={closeResolutionModal}
+                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitResolution}
+                disabled={!resolutionDetails.trim() || !!processingDispute}
+                className="px-4 py-2 bg-neon-green text-midnight-900 rounded-lg hover:bg-neon-green/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {processingDispute ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                Confirm Resolution
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
   );
 };
 

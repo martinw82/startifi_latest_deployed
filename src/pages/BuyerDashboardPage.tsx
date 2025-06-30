@@ -286,10 +286,28 @@ export const BuyerDashboardPage: React.FC = () => {
                   <Link to="/support" className="block w-full">
                     <GlossyButton
                       className="w-full justify-start"
-                      variant="outline"
+                      variant="outline" 
                     >
                       <Bell className="w-4 h-4 mr-2" />
                       Get Support
+                    </GlossyButton>
+                  </Link>
+                  <Link to="/refund-request" className="block w-full">
+                    <GlossyButton
+                      className="w-full justify-start"
+                      variant="outline"
+                    >
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Request Refund
+                    </GlossyButton>
+                  </Link>
+                  <Link to="/dispute" className="block w-full">
+                    <GlossyButton
+                      className="w-full justify-start"
+                      variant="outline"
+                    >
+                      <AlertCircle className="w-4 h-4 mr-2" />
+                      Report Issue
                     </GlossyButton>
                   </Link>
                 </div>

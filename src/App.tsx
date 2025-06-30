@@ -24,6 +24,9 @@ import { BuyerGitHubCallbackPage } from './pages/BuyerGitHubCallbackPage'; // Im
 import { BuyerNetlifyCallbackPage } from './pages/BuyerNetlifyCallbackPage'; // Import the Netlify callback page
 import { EditMVPPage } from './pages/EditMVPPage'; // Import the new EditMVPPage
 import { UserSettingsPage } from './pages/UserSettingsPage'; // Import UserSettingsPage
+import { RefundRequestPage } from './pages/RefundRequestPage'; // Import RefundRequestPage
+import { DisputePage } from './pages/DisputePage'; // Import DisputePage
+import { DisputeDetailPage } from './pages/DisputeDetailPage'; // Import DisputeDetailPage
 import { AuthContext, useAuthProvider } from './hooks/useAuth';
 
 const AppContent: React.FC = () => {
@@ -48,6 +51,9 @@ const AppContent: React.FC = () => {
           <Route path="/mvp/:mvpId" element={<MVPDetailPage />} />
           <Route path="/mvp/:mvpId/edit" element={<EditMVPPage />} /> {/* New route for EditMVPPage */}
           <Route path="/settings" element={<UserSettingsPage />} />
+          <Route path="/refund-request" element={<RefundRequestPage />} />
+          <Route path="/dispute/:mvpId?" element={<DisputePage />} />
+          <Route path="/disputes/:disputeId" element={<DisputeDetailPage />} />
           
           {/* GitHub App Callback Route */}
           <Route path="/github-app-callback" element={<GitHubAppCallbackPage />} />
