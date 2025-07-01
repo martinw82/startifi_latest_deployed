@@ -31,15 +31,17 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { user_id, mvp_id } = await req.json();
+    // Add deployment_id to destructuring
+    const { user_id, mvp_id, deployment_id } = await req.json();
 
     // Log received parameters
     console.log('initiate-buyer-github-oauth: Received user_id:', user_id);
     console.log('initiate-buyer-github-oauth: Received mvp_id:', mvp_id);
+    console.log('initiate-buyer-github-oauth: Received deployment_id:', deployment_id); // Log new parameter
 
-    if (!user_id) {
+    if (!user_id || !deployment_id) { // Ensure deployment_id is also checked
       return new Response(
-        JSON.stringify({ error: 'Missing required field: user_id' }),
+        JSON.stringify({ error: 'Missing required field: user_id, deployment_id' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -94,18 +96,18 @@ Deno.serve(async (req) => {
     }
 
     // Generate a unique state parameter to prevent CSRF attacks
-    const state = v4(); // Corrected: Call v4 directly
+    const state = v4();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // State valid for 5 minutes
 
-    // Store the state, user_id, and mvp_id (if provided) in the database
-    const stateData = {
+    // Store the state, user_id, mvp_id, and deployment_id in the database
+    const stateData: { user_id: string; state: string; expires_at: string; mvp_id?: string; deployment_id?: string } = { // Update type definition
       user_id: user_id,
       state: state,
       expires_at: expiresAt,
+      deployment_id: deployment_id, // Include deployment_id
     };
     
     if (mvp_id) {
-      // @ts-ignore - Add mvp_id if provided
       stateData.mvp_id = mvp_id;
     }
     
@@ -157,4 +159,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
