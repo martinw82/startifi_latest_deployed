@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Search, User, Bell, Menu, X, Shield, Settings, Loader2 } from 'lucide-react';
-import { GlossyButton } from '../components/ui/GlossyButton';
-import { ThemeToggle } from '../components/ui/ThemeToggle';
-import { useAuth } from '../hooks/useAuth';
-import { NotificationService } from '../lib/api';
+import { GlossyButton } from '../ui/GlossyButton';
+import { ThemeToggle } from '../ui/ThemeToggle';
+import { useAuth } from '../../hooks/useAuth';
+import { NotificationService } from '../../lib/api';
 
 // Import logo images
 import StartifiLogoLight from '/startifi-logo-lightmode.png';
