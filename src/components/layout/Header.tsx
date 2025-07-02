@@ -76,7 +76,7 @@ export const Header: React.FC = () => {
           {/* Logo */}
           <Link to="/">
             <motion.div
-              className="flex items-center space-x-2 cursor-pointer pt-2.5"
+              className="flex items-center space-x-2 cursor-pointer pt-4"
               whileHover={{ scale: 1.05 }}
             >
               <img
