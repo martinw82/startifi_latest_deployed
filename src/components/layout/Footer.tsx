@@ -1,10 +1,30 @@
 // src/components/layout/Footer.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Code2, Twitter, Github, Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// Import logo images
+import StartifiLogoLight from '/startifi-logo-lightmode.png';
+import StartifiLogoDark from '/startifi-logo-darkmode.png';
+
 export const Footer: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState(false); // State to track dark mode
+
+  // Effect to listen for theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    // Initial check
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+
+    return () => observer.disconnect();
+  }, []);
+
   const footerSections = [
     {
       title: 'Platform',
@@ -54,8 +74,11 @@ export const Footer: React.FC = () => {
               className="flex items-center space-x-2 mb-4"
               whileHover={{ scale: 1.05 }}
             >
-              <Code2 className="w-8 h-8 text-neon-green" />
-              <span className="text-xl font-bold bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent">Startifi</span>
+              <img
+                src={isDarkMode ? StartifiLogoDark : StartifiLogoLight}
+                alt="Startifi Logo"
+                className="h-8" // Set height for footer logo
+              />
             </motion.div>
             <p className="text-cyber-gray mb-6">
               Accelerate your development with AI-ready MVP codebases. 
@@ -125,7 +148,7 @@ export const Footer: React.FC = () => {
               <img
                 src="/black_circle_360x360_boltbadge.webp"
                 alt="Powered by Bolt"
-                className="w-24 h-24 absolute bottom-4 right-4" // Changed w-12 h-12 to w-24 h-24
+                className="w-24 h-24 fixed bottom-4 right-4" // Changed from absolute to fixed
               />
             </a>
           </div>
@@ -134,3 +157,4 @@ export const Footer: React.FC = () => {
     </footer>
   );
 };
+
