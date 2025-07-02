@@ -1,3 +1,4 @@
+// src/components/layout/Footer.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Code2, Twitter, Github, Mail } from 'lucide-react';
@@ -119,11 +120,14 @@ export const Footer: React.FC = () => {
             <p className="text-cyber-gray mt-4 md:mt-0">
               Built for developers, by developers
             </p>
-            <img
-              src="/black_circle_360x360_boltbadge.webp"
-              alt="Bolt Badge"
-              className="w-12 h-12 absolute bottom-4 right-4"
-            />
+            {/* Bolt Badge - Made 100% larger and linked to bolt.new */}
+            <a href="https://bolt.new" target="_blank" rel="noopener noreferrer">
+              <img
+                src="/black_circle_360x360_boltbadge.webp"
+                alt="Powered by Bolt"
+                className="w-24 h-24 absolute bottom-4 right-4" // Changed w-12 h-12 to w-24 h-24
+              />
+            </a>
           </div>
         </div>
       </div>
