@@ -990,7 +990,7 @@ export class DeploymentService {
           body: {
             user_id: userId,
             mvp_id: mvpId,
-            deployment_id: deploymentId,
+            deployment_id: deployment.id,
             repo_name: repoName,
            },
         }
@@ -1052,7 +1052,7 @@ export class DeploymentService {
       const { data, error } = await supabase
         .from('deployments')
         .select('*')
-        .eq('id', deploymentId)
+        .eq('id', deployment.id)
         .single();
 
       if (error) {
