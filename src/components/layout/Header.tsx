@@ -82,7 +82,7 @@ export const Header: React.FC = () => {
               <img
                 src={isDarkMode ? StartifiLogoDark : StartifiLogoLight}
                 alt="Startifi Logo"
-                className="h-32" // Changed from h-8 to h-32
+                className="h-40" // Changed from h-8 to h-32, then h40
               />
             </motion.div>
           </Link>
