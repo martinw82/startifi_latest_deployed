@@ -144,7 +144,7 @@ export const Footer: React.FC = () => {
               Built for developers, by developers
             </p>
             {/* Bolt Badge - Made 100% larger and linked to bolt.new */}
-            <a href="https://bolt.new" target="_blank" rel="noopener noreferrer">
+            <a href="https://bolt.new/?rid=cz5tax" target="_blank" rel="noopener noreferrer">
               <img
                 src="/black_circle_360x360_boltbadge.webp"
                 alt="Powered by Bolt"
