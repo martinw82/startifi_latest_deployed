@@ -2,17 +2,22 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Code2, Search, User, Bell, Menu, X, Shield, Settings, Loader2 } from 'lucide-react'; // Add Loader2 icon
+import { Search, User, Bell, Menu, X, Shield, Settings, Loader2 } from 'lucide-react';
 import { GlossyButton } from '../ui/GlossyButton';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { useAuth } from '../../hooks/useAuth';
-import { NotificationService } from '../../lib/api'; // Import NotificationService
+import { NotificationService } from '../../lib/api';
+
+// Import logo images
+import StartifiLogoLight from '/startifi-logo-lightmode.png';
+import StartifiLogoDark from '/startifi-logo-darkmode.png';
 
 export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loadingNotifications, setLoadingNotifications] = useState<boolean>(false);
+  const [isDarkMode, setIsDarkMode] = useState(false); // State to track dark mode
 
   useEffect(() => {
     if (user) {
@@ -24,6 +29,20 @@ export const Header: React.FC = () => {
       return () => clearInterval(interval);
     }
   }, [user]);
+
+  // Effect to listen for theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    // Initial check
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+
+    return () => observer.disconnect();
+  }, []);
 
   const fetchUnreadCount = async () => {
     if (!user) return;
@@ -60,10 +79,11 @@ export const Header: React.FC = () => {
               className="flex items-center space-x-2 cursor-pointer"
               whileHover={{ scale: 1.05 }}
             >
-              <Code2 className="w-8 h-8 text-neon-green" />
-              <span className="text-xl font-bold bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent">
-                Startifi
-              </span>
+              <img
+                src={isDarkMode ? StartifiLogoDark : StartifiLogoLight}
+                alt="Startifi Logo"
+                className="h-8" // Adjust height as needed
+              />
             </motion.div>
           </Link>
 
@@ -104,7 +124,7 @@ export const Header: React.FC = () => {
                     aria-label={`${unreadCount} unread notifications`}
                   >
                     {loadingNotifications ? (
-                       <Loader2 className="w-5 h-5 text-gray-700 dark:text-cyber-white animate-spin" />
+                       <Loader2 className="w-5 h-5 animate-spin" />
                       ) : (
                      <Bell className="w-5 h-5 text-gray-700 dark:text-cyber-white" />
                           )}
