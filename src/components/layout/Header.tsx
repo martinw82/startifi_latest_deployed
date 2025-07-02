@@ -1,136 +1,278 @@
-// src/components/layout/Footer.tsx
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Code2, Twitter, Github, Mail } from 'lucide-react';
+// src/components/layout/Header.tsx
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { Search, User, Bell, Menu, X, Shield, Settings, Loader2 } from 'lucide-react';
+import { GlossyButton } from '../ui/GlossyButton';
+import { ThemeToggle } from '../ui/ThemeToggle';
+import { useAuth } from '../../hooks/useAuth';
+import { NotificationService } from '../../lib/api';
 
-export const Footer: React.FC = () => {
-  const footerSections = [
-    {
-      title: 'Platform',
-      links: [
-        { label: 'Browse MVPs', href: '/mvps' },
-        { label: 'Pricing', href: '/pricing' },
-        { label: 'How it Works', href: '/how-it-works' },
-        { label: 'Success Stories', href: '/stories' },
-      ],
-    },
-    {
-      title: 'Sellers',
-      links: [
-        { label: 'Become a Seller', href: '/sell' },
-        { label: 'Seller Guidelines', href: '/guidelines' },
-        { label: 'Upload MVP', href: '/upload' },
-        { label: 'Seller Dashboard', href: '/dashboard' },
-      ],
-    },
-    {
-      title: 'Support',
-      links: [
-        { label: 'Help Center', href: '/help' },
-        { label: 'Contact Us', href: '/contact' },
-        { label: 'API Documentation', href: '/docs' },
-        { label: 'Status', href: '/status' },
-      ],
-    },
-    {
-      title: 'Legal',
-      links: [
-        { label: 'Privacy Policy', href: '/privacy' },
-        { label: 'Terms of Service', href: '/terms' },
-        { label: 'Cookie Policy', href: '/cookies' },
-        { label: 'License Terms', href: '/licenses' },
-      ],
-    },
+// Import logo images
+import StartifiLogoLight from '/startifi-logo-lightmode.png';
+import StartifiLogoDark from '/startifi-logo-darkmode.png';
+
+export const Header: React.FC = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [loadingNotifications, setLoadingNotifications] = useState<boolean>(false);
+  const [isDarkMode, setIsDarkMode] = useState(false); // State to track dark mode
+
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+
+      // Set up an interval to refresh unread count
+      const interval = setInterval(fetchUnreadCount, 60000); // Refresh every minute
+      
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  // Effect to listen for theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    // Initial check
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+
+    return () => observer.disconnect();
+  }, []);
+
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+    
+    try {
+      setLoadingNotifications(true);
+      const count = await NotificationService.getUnreadNotificationCount(user.id);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error fetching unread notifications count:', error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const navItems = [
+    { label: 'Browse MVPs', href: '/mvps' },
+    { label: 'Pricing', href: '/pricing' },
+    { label: 'Become a Seller', href: '/sell' },
   ];
 
   return (
-    <footer className="bg-gradient-to-br from-midnight-900 via-midnight-800 to-midnight-700 text-cyber-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-          {/* Brand Section */}
-          <div className="lg:col-span-1">
+    <motion.header
+      className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/10 dark:bg-midnight-800/10 border-b border-white/20 dark:border-neon-cyan/10"
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link to="/">
             <motion.div
-              className="flex items-center space-x-2 mb-4"
+              className="flex items-center space-x-2 cursor-pointer"
               whileHover={{ scale: 1.05 }}
             >
-              <Code2 className="w-8 h-8 text-neon-green" />
-              <span className="text-xl font-bold bg-gradient-to-r from-neon-green to-neon-cyan bg-clip-text text-transparent">Startifi</span>
-            </motion.div>
-            <p className="text-cyber-gray mb-6">
-              Accelerate your development with AI-ready MVP codebases. 
-              Launch faster, iterate smarter.
-            </p>
-            <div className="flex space-x-4">
-              {[
-                { icon: Twitter, href: '#' },
-                { icon: Github, href: '#' },
-                { icon: Mail, href: '#' },
-              ].map((social, index) => (
-                <motion.a
-                  key={index}
-                  href={social.href}
-                  className="p-2 rounded-full bg-midnight-800/50 hover:bg-midnight-700/70 transition-colors border border-neon-green/20 shadow-neon-green-glow-sm"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <social.icon className="w-5 h-5 text-neon-green" />
-                </motion.a>
-              ))}
-            </div>
-          </div>
-
-          {/* Footer Links */}
-          {footerSections.map((section, index) => (
-            <div key={section.title}>
-              <h3 className="text-lg font-semibold mb-4 text-cyber-white">{section.title}</h3>
-              <ul className="space-y-2">
-                {section.links.map((link) => (
-                  <li key={link.label}>
-                    {link.href.startsWith('/') ? (
-                      <Link to={link.href}>
-                        <motion.a
-                          className="text-cyber-gray hover:text-neon-green transition-colors"
-                          whileHover={{ x: 4 }}
-                        >
-                          {link.label}
-                        </motion.a>
-                      </Link>
-                    ) : (
-                      <motion.a
-                        href={link.href}
-                        className="text-cyber-gray hover:text-neon-green transition-colors"
-                        whileHover={{ x: 4 }}
-                      >
-                        {link.label}
-                      </motion.a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="border-t border-neon-green/20 mt-12 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-cyber-gray">
-              © 2025 Startifi. All rights reserved.
-            </p>
-            <p className="text-cyber-gray mt-4 md:mt-0">
-              Built for developers, by developers
-            </p>
-            {/* Bolt Badge - Made 100% larger and linked to bolt.new */}
-            <a href="https://bolt.new" target="_blank" rel="noopener noreferrer">
               <img
-                src="/black_circle_360x360_boltbadge.webp"
-                alt="Powered by Bolt"
-                className="w-24 h-24 absolute bottom-4 right-4" // Changed w-12 h-12 to w-24 h-24
+                src={isDarkMode ? StartifiLogoDark : StartifiLogoLight}
+                alt="Startifi Logo"
+                className="h-8" // Adjust height as needed
               />
-            </a>
+            </motion.div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-8">
+            {navItems.map((item) => (
+              <Link key={item.label} to={item.href}>
+                <motion.button
+                  className="text-cyber-gray hover:text-neon-green transition-colors text-gray-700 dark:text-cyber-white"
+                  whileHover={{ scale: 1.1 }}
+                >
+                  {item.label}
+                </motion.button>
+              </Link>
+            ))}
+          </nav>
+
+          {/* Right side */}
+          <div className="flex items-center space-x-4">
+            {/* Search */}
+            <motion.button
+              className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <Search className="w-5 h-5 text-gray-700 dark:text-cyber-white" />
+                    </motion.button>
+
+            <ThemeToggle />
+
+            {user ? (
+              <div className="flex items-center space-x-3">
+                <Link to="/notifications">
+                  <motion.button
+                     className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors relative"
+                
+                    whileHover={{ scale: 1.1 }}
+                    aria-label={`${unreadCount} unread notifications`}
+                  >
+                    {loadingNotifications ? (
+                       <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                     <Bell className="w-5 h-5 text-gray-700 dark:text-cyber-white" />
+                          )}
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-neon-green text-midnight-900 rounded-full px-1">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </motion.button>
+                </Link>
+                
+                <div className="flex items-center space-x-2">
+                  {/* Admin Dashboard Link */}
+                  {(user.role === 'admin' || user.role === 'both') && (
+                    <Link to="/admin">
+                      <motion.button
+                        className="p-2 rounded-full bg-neon-green/10 dark:bg-neon-green/20 border border-neon-green/30 dark:border-neon-green/40 hover:bg-neon-green/20 dark:hover:bg-neon-green/30 transition-colors"
+                        whileHover={{ scale: 1.1 }}
+                        title="Admin Dashboard"
+                      >
+                         <Shield className="w-5 h-5 text-blue-600 dark:text-neon-green" />
+                         </motion.button>
+                    </Link>
+                  )}
+                  
+                  {/* User Settings Link */}
+                  <Link to="/settings">
+                    <motion.button
+                       className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+                    
+                      whileHover={{ scale: 1.1 }}
+                      title="User Settings"
+                    >
+                      <Settings className="w-5 h-5 text-gray-700 dark:text-cyber-white" />
+                      </motion.button>
+                  </Link>
+
+                  <Link to="/dashboard">
+                    <motion.button
+                      className="p-2 rounded-full bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md border border-white/20 dark:border-neon-green/20 hover:bg-white/20 dark:hover:bg-midnight-700/30 transition-colors"
+                      whileHover={{ scale: 1.1 }}
+                    >
+                          <User className="w-5 h-5 text-gray-700 dark:text-cyber-white" />
+                     </motion.button>
+                  </Link>
+                  <GlossyButton
+                    variant="outline"
+                    size="sm"
+                    onClick={signOut}
+                  >
+                    Sign Out
+                  </GlossyButton>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-3">
+                <Link to="/auth">
+                  <GlossyButton
+                    variant="outline"
+                    size="sm"
+                  >
+                    Sign In
+                  </GlossyButton>
+                </Link>
+                <Link to="/auth">
+                  <GlossyButton
+                    size="sm"
+                  >
+                    Get Started
+                  </GlossyButton>
+                </Link>
+              </div>
+            )}
+
+            {/* Mobile menu button */}
+            <motion.button
+              className="md:hidden p-2 rounded-lg text-gray-700 dark:text-cyber-white"
+                 onClick={() => setIsMenuOpen(!isMenuOpen)}
+              whileTap={{ scale: 0.95 }}
+            >
+             {isMenuOpen ? <X className="w-6 h-6 text-gray-700 dark:text-cyber-white" /> : <Menu className="w-6 h-6 text-gray-700 dark:text-cyber-white" />}
+              </motion.button>
           </div>
         </div>
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <motion.div
+            className="md:hidden"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <div className="px-2 pt-2 pb-3 space-y-1 bg-white/10 dark:bg-midnight-800/20 backdrop-blur-md rounded-lg mt-2 border border-white/20 dark:border-neon-cyan/20">
+              {navItems.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  onClick={() => setIsMenuOpen(false)}
+                     className="block w-full text-left px-3 py-2 text-gray-700 hover:text-neon-cyan transition-colors dark:text-cyber-white"
+             
+                >
+                  {item.label}
+                </Link>
+              ))}
+              {user && (
+                <>
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setIsMenuOpen(false)}
+                      className="block w-full text-left px-3 py-2 text-gray-700 hover:text-neon-cyan transition-colors dark:text-cyber-white"
+               
+                  >
+                    Dashboard
+                  </Link>
+                  <Link to="/notifications">
+                    <div className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors text-gray-700 dark:text-cyber-white">
+                      Notifications
+                      {unreadCount > 0 && (
+                        <span className="inline-flex items-center justify-center ml-2 w-5 h-5 text-xs font-bold bg-neon-green text-midnight-900 rounded-full">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                  <Link
+                    to="/settings"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block w-full text-left px-3 py-2 text-cyber-gray hover:text-neon-cyan transition-colors text-gray-700 dark:text-cyber-white"
+                  >
+                    Settings
+                  </Link>
+                  {(user.role === 'admin' || user.role === 'both') && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block w-full text-left px-3 py-2 text-neon-green hover:text-neon-green/80 transition-colors text-gray-700 dark:text-cyber-white"
+                    >
+                      Admin Dashboard
+                    </Link>
+                  )}
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
       </div>
-    </footer>
+    </motion.header>
   );
 };
+
