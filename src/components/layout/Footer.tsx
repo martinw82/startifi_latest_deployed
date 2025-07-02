@@ -77,7 +77,7 @@ export const Footer: React.FC = () => {
               <img
                 src={isDarkMode ? StartifiLogoDark : StartifiLogoLight}
                 alt="Startifi Logo"
-                className="h-20" // Set height for footer logo
+                className="h-40" // Set height for footer logo
               />
             </motion.div>
             <p className="text-cyber-gray mb-6">
