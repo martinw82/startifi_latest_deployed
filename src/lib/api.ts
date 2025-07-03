@@ -1,1475 +1,761 @@
 // src/lib/api.ts
 import { supabase } from './supabase';
-import type { MVP, Review, Subscription, Download, RefundRequest, Dispute } from '../types';
-import { MVPUploadService } from './mvpUpload';
+import type { MVP, Review, Download, Notification, RefundRequest, Dispute, User, NewsletterType, NewsletterSubscriber, UserNewsletterSubscription } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
+// Mock data for demonstration purposes
+// In a real application, this would be fetched from a database or external API
+const MOCK_MVPS: MVP[] = [
+  {
+    id: 'mvp-1',
+    seller_id: 'seller-1',
+    title: 'AI-Powered SaaS Starter Kit',
+    slug: 'ai-saas-starter-kit',
+    tagline: 'Launch your AI SaaS faster with this comprehensive starter kit.',
+    description: `This boilerplate provides a robust foundation for your next AI-powered SaaS application. It includes user authentication, subscription management, a powerful admin dashboard, and integrations with popular AI APIs. Built with Next.js, TypeScript, and Supabase, it's designed for scalability and developer happiness.
+    
+    **Key Features:**
+    - User Authentication (Sign up, Login, Password Reset)
+    - Subscription Management (Stripe Integration)
+    - Admin Dashboard for User & Content Management
+    - AI API Integration Examples (OpenAI, Hugging Face)
+    - Responsive UI with Tailwind CSS
+    - Database Integration with Supabase
+    - Comprehensive Documentation
+    - Dockerized for easy deployment`,
+    features: [
+      'User Authentication',
+      'Subscription Management',
+      'Admin Dashboard',
+      'AI API Integration',
+      'Responsive Design',
+      'Supabase Integration',
+      'Docker Support',
+      'Comprehensive Docs'
+    ],
+    tech_stack: ['Next.js', 'TypeScript', 'React', 'Tailwind CSS', 'Supabase', 'Stripe', 'OpenAI'],
+    category: 'SaaS',
+    ipfs_hash: 'QmYyGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz123456',
+    file_size: 1024 * 1024 * 50, // 50 MB
+    preview_images: [
+      'https://images.pexels.com/photos/546819/pexels-photo-546819.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+      'https://images.pexels.com/photos/1779487/pexels-photo-1779487.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+      'https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+      'https://images.pexels.com/photos/416405/pexels-photo-416405.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    ],
+    demo_url: 'https://ai-saas-demo.vercel.app',
+    github_url: 'https://github.com/example/ai-saas-starter',
+    licensing_terms: 'standard_commercial',
+    status: 'approved',
+    version_number: '1.0.0',
+    changelog: 'Initial release with core features.',
+    download_count: 1250,
+    average_rating: 4.8,
+    created_at: '2024-01-15T10:00:00Z',
+    updated_at: '2024-06-20T14:30:00Z',
+    published_at: '2024-01-20T10:00:00Z',
+    access_tier: 'subscription',
+    price: 0,
+    seller: {
+      id: 'seller-1',
+      email: 'seller1@example.com',
+    },
+  },
+  {
+    id: 'mvp-2',
+    seller_id: 'seller-2',
+    title: 'E-commerce Storefront with AI Recommendations',
+    slug: 'ecommerce-ai-recs',
+    tagline: 'A modern e-commerce solution featuring AI-driven product recommendations.',
+    description: 'Full-featured e-commerce template with user accounts, product listings, shopping cart, checkout, and AI-powered recommendation engine. Integrates with Stripe for payments and uses React with a Node.js backend.',
+    features: ['Product Catalog', 'Shopping Cart', 'User Accounts', 'Stripe Payments', 'AI Recommendations'],
+    tech_stack: ['React', 'Node.js', 'Express', 'MongoDB', 'Stripe', 'Python (AI)'],
+    category: 'E-commerce',
+    ipfs_hash: 'QmXyZzWwVvUuTtSsRrQqPpOoNnMmLlKkJjIiHhGgFfEeDdCcBbAa',
+    file_size: 1024 * 1024 * 70, // 70 MB
+    preview_images: [
+      'https://images.pexels.com/photos/264636/pexels-photo-264636.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+      'https://images.pexels.com/photos/1027130/pexels-photo-1027130.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    ],
+    demo_url: 'https://ecommerce-ai-demo.netlify.app',
+    github_url: 'https://github.com/example/ecommerce-ai',
+    licensing_terms: 'premium_commercial',
+    status: 'approved',
+    version_number: '1.2.0',
+    changelog: 'Added new payment gateways and improved recommendation algorithm.',
+    download_count: 890,
+    average_rating: 4.5,
+    created_at: '2023-11-01T09:00:00Z',
+    updated_at: '2024-05-10T11:00:00Z',
+    published_at: '2023-11-15T09:00:00Z',
+    access_tier: 'one_time_sale',
+    price: 199.99,
+    seller: {
+      id: 'seller-2',
+      email: 'seller2@example.com',
+    },
+  },
+  {
+    id: 'mvp-3',
+    seller_id: 'seller-1',
+    title: 'Personal Portfolio Generator',
+    slug: 'portfolio-generator',
+    tagline: 'Generate a stunning personal portfolio website in minutes.',
+    description: 'A simple yet elegant portfolio website generator. Input your projects, skills, and bio, and it generates a responsive, modern portfolio site. Perfect for developers, designers, and freelancers.',
+    features: ['Easy Customization', 'Responsive Design', 'Project Showcase', 'Contact Form'],
+    tech_stack: ['Vue.js', 'Tailwind CSS', 'Firebase'],
+    category: 'Portfolio',
+    ipfs_hash: 'QmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890AbCdEf',
+    file_size: 1024 * 1024 * 15, // 15 MB
+    preview_images: [
+      'https://images.pexels.com/photos/326576/pexels-photo-326576.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    ],
+    demo_url: 'https://portfolio-gen.web.app',
+    github_url: 'https://github.com/example/portfolio-generator',
+    licensing_terms: 'personal_use_only',
+    status: 'approved',
+    version_number: '1.0.0',
+    changelog: 'Initial release.',
+    download_count: 2300,
+    average_rating: 4.9,
+    created_at: '2024-02-01T12:00:00Z',
+    updated_at: '2024-02-01T12:00:00Z',
+    published_at: '2024-02-05T12:00:00Z',
+    access_tier: 'free',
+    price: 0,
+    seller: {
+      id: 'seller-1',
+      email: 'seller1@example.com',
+    },
+  },
+  {
+    id: 'mvp-4',
+    seller_id: 'seller-3',
+    title: 'Task Management Dashboard',
+    slug: 'task-manager-dashboard',
+    tagline: 'A clean and intuitive dashboard for managing your daily tasks.',
+    description: 'Organize your tasks, set priorities, and track progress with this minimalist task management dashboard. Features include drag-and-drop reordering, due dates, and user-specific task lists.',
+    features: ['Task Creation', 'Prioritization', 'Drag & Drop', 'User-specific Lists'],
+    tech_stack: ['Angular', 'TypeScript', 'Node.js', 'PostgreSQL'],
+    category: 'Dashboard',
+    ipfs_hash: 'QmBcDeFgHiJkLmNoPqRsTuVwXyZz1234567890Ab',
+    file_size: 1024 * 1024 * 30, // 30 MB
+    preview_images: [
+      'https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    ],
+    demo_url: 'https://task-manager-demo.vercel.app',
+    github_url: 'https://github.com/example/task-manager',
+    licensing_terms: 'standard_commercial',
+    status: 'pending_review', // Example of a pending MVP
+    version_number: '1.0.0',
+    changelog: 'Initial submission for review.',
+    download_count: 0,
+    average_rating: 0.0,
+    created_at: '2024-06-25T08:00:00Z',
+    updated_at: '2024-06-25T08:00:00Z',
+    published_at: null,
+    access_tier: 'subscription',
+    price: 0,
+    seller: {
+      id: 'seller-3',
+      email: 'seller3@example.com',
+    },
+  },
+  {
+    id: 'mvp-5',
+    seller_id: 'seller-1',
+    title: 'Simple Blog Platform',
+    slug: 'simple-blog-platform',
+    tagline: 'A lightweight and fast blog platform for content creators.',
+    description: 'Create and manage blog posts with ease. Features a rich text editor, markdown support, and a responsive design. Ideal for personal blogs or small content sites.',
+    features: ['Content Management', 'Rich Text Editor', 'Markdown Support', 'Responsive Design'],
+    tech_stack: ['Svelte', 'Firebase', 'Tailwind CSS'],
+    category: 'Utility',
+    ipfs_hash: 'QmFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz123456',
+    file_size: 1024 * 1024 * 20, // 20 MB
+    preview_images: [
+      'https://images.pexels.com/photos/1591056/pexels-photo-1591056.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    ],
+    demo_url: 'https://svelte-blog-demo.netlify.app',
+    github_url: 'https://github.com/example/svelte-blog',
+    licensing_terms: 'standard_commercial',
+    status: 'approved',
+    version_number: '1.0.0',
+    changelog: 'Initial release.',
+    download_count: 500,
+    average_rating: 4.2,
+    created_at: '2024-03-01T10:00:00Z',
+    updated_at: '2024-03-01T10:00:00Z',
+    published_at: '2024-03-05T10:00:00Z',
+    access_tier: 'free',
+    price: 0,
+    seller: {
+      id: 'seller-1',
+      email: 'seller1@example.com',
+    },
+  },
+  {
+    id: 'mvp-6',
+    seller_id: 'seller-2',
+    title: 'Fitness Tracker App',
+    slug: 'fitness-tracker-app',
+    tagline: 'Track your workouts and progress with this intuitive fitness app.',
+    description: 'A mobile-first fitness tracking application. Log your exercises, monitor your progress, and visualize your fitness journey. Includes user profiles and data synchronization.',
+    features: ['Workout Logging', 'Progress Tracking', 'Data Visualization', 'User Profiles'],
+    tech_stack: ['React Native', 'Node.js', 'GraphQL', 'PostgreSQL'],
+    category: 'Mobile App',
+    ipfs_hash: 'QmPpQqRrSsTtUuVvWwXxYyZz1234567890AbCdEfGh',
+    file_size: 1024 * 1024 * 60, // 60 MB
+    preview_images: [
+      'https://images.pexels.com/photos/416717/pexels-photo-416717.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+    ],
+    demo_url: 'https://fitness-app-demo.netlify.app',
+    github_url: 'https://github.com/example/fitness-tracker',
+    licensing_terms: 'standard_commercial',
+    status: 'approved',
+    version_number: '1.0.0',
+    changelog: 'Initial release.',
+    download_count: 700,
+    average_rating: 4.7,
+    created_at: '2024-04-10T11:00:00Z',
+    updated_at: '2024-04-10T11:00:00Z',
+    published_at: '2024-04-15T11:00:00Z',
+    access_tier: 'one_time_sale',
+    price: 149.99,
+    seller: {
+      id: 'seller-2',
+      email: 'seller2@example.com',
+    },
+  },
+];
+
+const MOCK_REVIEWS: Review[] = [
+  {
+    id: 'review-1',
+    user_id: 'user-1',
+    mvp_id: 'mvp-1',
+    rating: 5,
+    review_text: 'This kit is amazing! Saved me weeks of development time. Highly recommend for any SaaS project.',
+    created_at: '2024-01-25T10:00:00Z',
+    is_verified_buyer: true,
+    user: { email: 'user1@example.com' }
+  },
+  {
+    id: 'review-2',
+    user_id: 'user-2',
+    mvp_id: 'mvp-1',
+    rating: 4,
+    review_text: 'Great starting point, very clean code. Some parts needed customization but overall excellent.',
+    created_at: '2024-02-01T11:30:00Z',
+    is_verified_buyer: true,
+    user: { email: 'user2@example.com' }
+  },
+  {
+    id: 'review-3',
+    user_id: 'user-3',
+    mvp_id: 'mvp-2',
+    rating: 5,
+    review_text: 'The AI recommendations are a game-changer for my store. Easy to integrate and works flawlessly.',
+    created_at: '2023-12-01T14:00:00Z',
+    is_verified_buyer: true,
+    user: { email: 'user3@example.com' }
+  },
+  {
+    id: 'review-4',
+    user_id: 'user-4',
+    mvp_id: 'mvp-3',
+    rating: 5,
+    review_text: 'Generated a beautiful portfolio in minutes. Exactly what I needed!',
+    created_at: '2024-02-10T09:00:00Z',
+    is_verified_buyer: false, // Not a verified buyer
+    user: { email: 'user4@example.com' }
+  },
+];
+
+const MOCK_DOWNLOADS: Download[] = [
+  {
+    id: 'dl-1',
+    user_id: 'user-1',
+    mvp_id: 'mvp-1',
+    downloaded_at: '2024-01-20T15:00:00Z',
+    month_year: '2024-01',
+    mvps: MOCK_MVPS[0]
+  },
+  {
+    id: 'dl-2',
+    user_id: 'user-1',
+    mvp_id: 'mvp-3',
+    downloaded_at: '2024-02-05T10:00:00Z',
+    month_year: '2024-02',
+    mvps: MOCK_MVPS[2]
+  },
+  {
+    id: 'dl-3',
+    user_id: 'user-2',
+    mvp_id: 'mvp-1',
+    downloaded_at: '2024-01-22T11:00:00Z',
+    month_year: '2024-01',
+    mvps: MOCK_MVPS[0]
+  },
+];
+
+const MOCK_NOTIFICATIONS: Notification[] = [
+  {
+    id: 'notif-1',
+    user_id: 'user-1',
+    type: 'new_download',
+    message: 'Your MVP "AI-Powered SaaS Starter Kit" was downloaded!',
+    link: '/mvp/mvp-1',
+    read: false,
+    created_at: '2024-06-28T10:00:00Z'
+  },
+  {
+    id: 'notif-2',
+    user_id: 'user-1',
+    type: 'new_review',
+    message: 'You received a new 5-star review on "AI-Powered SaaS Starter Kit"!',
+    link: '/mvp/mvp-1',
+    read: false,
+    created_at: '2024-06-27T15:30:00Z'
+  },
+  {
+    id: 'notif-3',
+    user_id: 'user-1',
+    type: 'mvp_approved',
+    message: 'Your MVP "Personal Portfolio Generator" has been approved and is now live!',
+    link: '/mvp/mvp-3',
+    read: true,
+    created_at: '2024-06-20T09:00:00Z'
+  },
+  {
+    id: 'notif-4',
+    user_id: 'user-1',
+    type: 'payout_initiated',
+    message: 'Your payout of $150.00 for May sales has been initiated.',
+    link: '/payouts',
+    read: false,
+    created_at: '2024-06-01T12:00:00Z'
+  }
+];
+
+const MOCK_REFUND_REQUESTS: RefundRequest[] = [
+  {
+    id: 'refund-1',
+    user_id: 'user-1',
+    subscription_id: 'sub-1',
+    reason: 'Not what I expected',
+    amount_requested: 29.99,
+    status: 'pending',
+    created_at: '2024-06-20T10:00:00Z',
+    user: { email: 'user1@example.com' },
+    subscription: { plan_type: 'pro', stripe_subscription_id: 'stripe-sub-1' }
+  },
+  {
+    id: 'refund-2',
+    user_id: 'user-2',
+    subscription_id: 'sub-2',
+    reason: 'Accidental purchase',
+    amount_requested: 9.99,
+    status: 'approved',
+    processed_at: '2024-06-15T11:00:00Z',
+    created_at: '2024-06-10T09:00:00Z',
+    user: { email: 'user2@example.com' },
+    subscription: { plan_type: 'basic', stripe_subscription_id: 'stripe-sub-2' }
+  }
+];
+
+const MOCK_DISPUTES: Dispute[] = [
+  {
+    id: 'dispute-1',
+    buyer_id: 'user-1',
+    seller_id: 'seller-2',
+    mvp_id: 'mvp-2',
+    reason: 'Non-functioning code',
+    details: 'The AI recommendation engine does not work as advertised. It throws an error when trying to initialize the model. I have followed all installation steps precisely.',
+    status: 'open',
+    opened_at: '2024-06-25T14:00:00Z',
+    buyer: { email: 'user1@example.com' },
+    seller: { email: 'seller2@example.com' },
+    mvp: { title: 'E-commerce Storefront with AI Recommendations', slug: 'ecommerce-ai-recs' }
+  },
+  {
+    id: 'dispute-2',
+    buyer_id: 'user-3',
+    seller_id: 'seller-1',
+    mvp_id: 'mvp-1',
+    reason: 'Missing features',
+    details: 'The kit claims to have Docker support but the Dockerfile is incomplete and does not build correctly. This was a key reason for my purchase.',
+    status: 'in_review',
+    opened_at: '2024-06-20T10:00:00Z',
+    buyer: { email: 'user3@example.com' },
+    seller: { email: 'seller1@example.com' },
+    mvp: { title: 'AI-Powered SaaS Starter Kit', slug: 'ai-saas-starter-kit' }
+  }
+];
+
+const MOCK_NEWSLETTER_TYPES: NewsletterType[] = [
+  {
+    id: 'general-site-updates-id',
+    name: 'General Site Updates & Announcements',
+    description: 'Receive news about our platform, new features, and occasional promotions.',
+    is_active: true,
+    created_at: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'seller-tips-id',
+    name: 'Seller Tips & Best Practices',
+    description: 'Tips and strategies for maximizing your sales as an MVP seller.',
+    is_active: true,
+    created_at: '2024-01-01T00:00:00Z',
+  },
+];
+
+const MOCK_NEWSLETTER_SUBSCRIBERS: NewsletterSubscriber[] = [
+  {
+    id: 'sub-1',
+    email: 'test1@example.com',
+    source: 'homepage_modal',
+    agreed_to_terms: true,
+    subscribed_at: '2024-05-01T10:00:00Z',
+    last_modified_at: '2024-05-01T10:00:00Z',
+    unsubscribed_at: undefined,
+    categories: ['updates', 'marketing'],
+  },
+  {
+    id: 'sub-2',
+    email: 'test2@example.com',
+    source: 'footer',
+    agreed_to_terms: true,
+    subscribed_at: '2024-04-15T11:00:00Z',
+    last_modified_at: '2024-04-15T11:00:00Z',
+    unsubscribed_at: '2024-06-01T12:00:00Z',
+    categories: ['updates'],
+  },
+];
+
+const MOCK_USER_NEWSLETTER_SUBSCRIPTIONS: UserNewsletterSubscription[] = [
+  {
+    id: 'user-sub-1',
+    user_id: 'user-1',
+    newsletter_type_id: 'general-site-updates-id',
+    subscribed_at: '2024-01-01T00:00:00Z',
+    unsubscribed_at: undefined,
+    status: 'active',
+    source: 'signup',
+    last_modified_at: '2024-01-01T00:00:00Z',
+    newsletter_type: MOCK_NEWSLETTER_TYPES[0],
+  },
+  {
+    id: 'user-sub-2',
+    user_id: 'user-1',
+    newsletter_type_id: 'seller-tips-id',
+    subscribed_at: '2024-02-01T00:00:00Z',
+    unsubscribed_at: '2024-06-01T00:00:00Z',
+    status: 'inactive',
+    source: 'user_settings',
+    last_modified_at: '2024-06-01T00:00:00Z',
+    newsletter_type: MOCK_NEWSLETTER_TYPES[1],
+  },
+];
+
 export class APIService {
-  // MVP Management
   static async getMVPs(filters?: {
+    search?: string;
     category?: string;
     techStack?: string[];
-    search?: string;
-    page?: number;
-    limit?: number;
-    sortBy?: 'download_count' | 'average_rating' | 'published_at';
     minPrice?: number;
     maxPrice?: number;
     licensingTerms?: string;
-  }) {
-    try {
-      let query = supabase
-        .from('mvps')
-        .select(`
-          *,
-          profiles!mvps_seller_id_fkey(id, email, username)
-        `)
-        .eq('status', 'approved');
+    sortBy?: 'published_at' | 'download_count' | 'average_rating';
+    page?: number;
+    limit?: number;
+  }): Promise<{ mvps: MVP[]; total: number }> {
+    let filtered = MOCK_MVPS.filter(mvp => mvp.status === 'approved');
 
-      if (filters?.category && filters.category !== 'All') {
-        query = query.eq('category', filters.category);
-      }
-
-      if (filters?.techStack && filters.techStack.length > 0) {
-        query = query.overlaps('tech_stack', filters.techStack);
-      }
-
-      if (filters?.search) {
-        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,tagline.ilike.%${filters.search}%`);
-      }
-
-      if (filters?.minPrice !== undefined) {
-        query = query.gte('price', filters.minPrice);
-      }
-
-      if (filters?.maxPrice !== undefined) {
-        query = query.lte('price', filters.maxPrice);
-      }
-
-      if (filters?.licensingTerms && filters.licensingTerms !== 'all') {
-        query = query.eq('licensing_terms', filters.licensingTerms);
-      }
-
-      if (filters?.sortBy) {
-        query = query.order(filters.sortBy, { ascending: false });
-      } else {
-        query = query.order('published_at', { ascending: false });
-      }
-
-      const from = (filters?.page || 0) * (filters?.limit || 20);
-      const to = from + (filters?.limit || 20) - 1;
-      
-      query = query.range(from, to);
-
-      const { data, error, count } = await query;
-      
-      if (error) {
-        console.error('Error fetching MVPs:', error);
-        throw error;
-      }
-
-      const mvps = data?.map(mvp => ({
-        ...mvp,
-        seller: mvp.profiles,
-      })) || [];
-
-      // Add demo MVP for showcase if no real data exists
-      if (mvps.length === 0) {
-        mvps.push({
-          id: 'demo-mvp-1',
-          seller_id: 'demo-seller',
-          title: 'AI-Powered SaaS Starter Kit',
-          slug: 'ai-saas-starter-kit',
-          tagline: 'Complete SaaS boilerplate with AI integration, authentication, and payments',
-          description: 'A comprehensive SaaS starter kit built with Next.js, Supabase, Stripe, and OpenAI integration. Features include user authentication, subscription management, AI-powered content generation, admin dashboard, and responsive design. Perfect for launching your AI-powered SaaS quickly.',
-          features: [
-            'AI Content Generation with OpenAI',
-            'User Authentication & Authorization',
-            'Stripe Subscription Management',
-            'Admin Dashboard',
-            'Responsive Design',
-            'Email Templates',
-            'Database Schema',
-            'API Routes'
-          ],
-          tech_stack: ['Next.js', 'TypeScript', 'Supabase', 'Stripe', 'OpenAI', 'Tailwind CSS', 'Framer Motion'],
-          category: 'SaaS',
-          ipfs_hash: 'QmDemoHash123',
-          file_size: 25165824, // 24MB
-          preview_images: [
-            'https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=800',
-            'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=800',
-            'https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?auto=compress&cs=tinysrgb&w=800'
-          ],
-          demo_url: 'https://ai-saas-demo.vercel.app',
-          github_url: 'https://github.com/demo/ai-saas-starter',
-          licensing_terms: 'standard_commercial' as const,
-          status: 'approved' as const,
-          version_number: '2.1.0',
-          changelog: 'Added OpenAI GPT-4 integration, improved dashboard UI, fixed authentication bugs',
-          download_count: 1247,
-          average_rating: 4.8,
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-20T14:30:00Z',
-          published_at: '2024-01-15T12:00:00Z',
-          seller: {
-            id: 'demo-seller',
-            email: 'demo@mvplibrary.dev',
-            username: 'demoseller'
-          },
-          access_tier: 'subscription' // Added access_tier
-        });
-      }
-
-      return {
-        mvps,
-        total: count || mvps.length,
-      };
-    } catch (error) {
-      console.error('Error in getMVPs:', error);
-      throw error;
+    if (filters?.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(
+        mvp =>
+          mvp.title.toLowerCase().includes(searchLower) ||
+          mvp.tagline.toLowerCase().includes(searchLower) ||
+          mvp.description.toLowerCase().includes(searchLower)
+      );
     }
+
+    if (filters?.category && filters.category !== 'All') {
+      filtered = filtered.filter(mvp => mvp.category === filters.category);
+    }
+
+    if (filters?.techStack && filters.techStack.length > 0) {
+      filtered = filtered.filter(mvp =>
+        filters.techStack!.every(tech => mvp.tech_stack.includes(tech))
+      );
+    }
+
+    if (filters?.minPrice !== undefined) {
+      filtered = filtered.filter(mvp => (mvp.price || 0) >= filters.minPrice!);
+    }
+
+    if (filters?.maxPrice !== undefined) {
+      filtered = filtered.filter(mvp => (mvp.price || 0) <= filters.maxPrice!);
+    }
+
+    if (filters?.licensingTerms && filters.licensingTerms !== 'all') {
+      filtered = filtered.filter(mvp => mvp.licensing_terms === filters.licensingTerms);
+    }
+
+    if (filters?.sortBy) {
+      filtered.sort((a, b) => {
+        if (filters.sortBy === 'published_at') {
+          return new Date(b.published_at || 0).getTime() - new Date(a.published_at || 0).getTime();
+        } else if (filters.sortBy === 'download_count') {
+          return b.download_count - a.download_count;
+        } else if (filters.sortBy === 'average_rating') {
+          return b.average_rating - a.average_rating;
+        }
+        return 0;
+      });
+    }
+
+    const total = filtered.length;
+    const start = (filters?.page || 0) * (filters?.limit || 20);
+    const end = start + (filters?.limit || 20);
+    const paginated = filtered.slice(start, end);
+
+    return { mvps: paginated, total };
   }
 
-  static async getMVPById(mvpId: string): Promise<MVP | null> {
-    console.log('APIService: Attempting to fetch MVP with ID:', mvpId); // Log the MVP ID
-    try {
-      const { data, error } = await supabase
-        .from('mvps')
-        .select(`
-          *,
-          profiles!mvps_seller_id_fkey(id, email, username)
-        `)
-        .eq('id', mvpId)
+  static async getMVPById(id: string): Promise<MVP | null> {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const mvp = MOCK_MVPS.find(m => m.id === id || m.slug === id);
+    if (mvp) {
+      // In a real app, fetch seller details from profiles table
+      const { data: seller, error } = await supabase
+        .from('profiles')
+        .select('id, email, username')
+        .eq('id', mvp.seller_id)
         .single();
-      
+
       if (error) {
-        console.error('APIService: Error fetching MVP by ID:', error); // Log the error
-        throw error;
+        console.error('Error fetching seller for MVP:', error);
+        return { ...mvp, seller: undefined };
       }
-
-      if (!data) {
-        console.log('APIService: No MVP data found for ID:', mvpId); // Log if no data
-        return null;
-      }
-
-      // Add demo MVP fallback if no real data exists
-      if (mvpId === 'demo-mvp-1') {
-        return {
-          id: 'demo-mvp-1',
-          seller_id: 'demo-seller',
-          title: 'AI-Powered SaaS Starter Kit',
-          slug: 'ai-saas-starter-kit',
-          tagline: 'Complete SaaS boilerplate with AI integration, authentication, and payments',
-          description: 'A comprehensive SaaS starter kit built with Next.js, Supabase, Stripe, and OpenAI integration. Features include user authentication, subscription management, AI-powered content generation, admin dashboard, and responsive design. Perfect for launching your AI-powered SaaS quickly.',
-          features: [
-            'AI Content Generation with OpenAI',
-            'User Authentication & Authorization',
-            'Stripe Subscription Management',
-            'Admin Dashboard',
-            'Responsive Design',
-            'Email Templates',
-            'Database Schema',
-            'API Routes'
-          ],
-          tech_stack: ['Next.js', 'TypeScript', 'Supabase', 'Stripe', 'OpenAI', 'Tailwind CSS', 'Framer Motion'],
-          category: 'SaaS',
-          ipfs_hash: 'QmDemoHash123',
-          file_size: 25165824, // 24MB
-          preview_images: [
-            'https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=800',
-            'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=800',
-            'https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?auto=compress&cs=tinysrgb&w=800'
-          ],
-          demo_url: 'https://ai-saas-demo.vercel.app',
-          github_url: 'https://github.com/demo/ai-saas-starter',
-          licensing_terms: 'standard_commercial' as const,
-          status: 'approved' as const,
-          version_number: '2.1.0',
-          changelog: 'Added OpenAI GPT-4 integration, improved dashboard UI, fixed authentication bugs',
-          download_count: 1247,
-          average_rating: 4.8,
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-20T14:30:00Z',
-          published_at: '2024-01-15T12:00:00Z',
-          seller: {
-            id: 'demo-seller',
-            email: 'demo@mvplibrary.dev',
-            username: 'demoseller'
-          },
-          access_tier: 'subscription' // Added access_tier
-        };
-      }
-
-      return {
-        ...data,
-        seller: data.profiles,
-      };
-    } catch (error) {
-      console.error('APIService: Error in getMVPById:', error); // Log the error
-      throw error;
+      return { ...mvp, seller: seller || undefined };
     }
+    return null;
   }
 
   static async downloadMVP(mvpId: string, userId: string): Promise<{ success: boolean; message: string; filePath?: string }> {
-    try {
-      // 1. Fetch user profile to check download quota
-      const { data: userProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('downloads_remaining')
-        .eq('id', userId)
-        .single();
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-      if (profileError || !userProfile) {
-        console.error('Error fetching user profile:', profileError);
-        return { success: false, message: 'User profile not found or could not be accessed.' };
-      }
-
-      if (userProfile.downloads_remaining <= 0) {
-        return { success: false, message: "You have reached your download quota for this month." };
-      }
-
-      // 2. Decrement user's download quota
-      const newDownloadsRemaining = userProfile.downloads_remaining - 1;
-      const { error: updateProfileError } = await supabase
-        .from('profiles')
-        .update({ downloads_remaining: newDownloadsRemaining })
-        .eq('id', userId);
-
-      if (updateProfileError) {
-        console.error('Error updating user download quota:', updateProfileError);
-        return { success: false, message: 'Failed to update your download quota. Please try again.' };
-      }
-
-      // 3. Log the download
-      const currentMonthYear = new Date().toISOString().substring(0, 7); // YYYY-MM format
-      const { error: insertDownloadError } = await supabase
-        .from('downloads')
-        .insert({
-          user_id: userId,
-          mvp_id: mvpId,
-          downloaded_at: new Date().toISOString(), // Use current timestamp
-          month_year: currentMonthYear,
-          // download_ip and user_agent can be captured in a server-side function if needed
-        });
-
-      if (insertDownloadError) {
-        console.error('Error logging download:', insertDownloadError);
-        // Log the error but don't block the download if quota was successfully decremented
-      }
-
-      // 4. Get MVP details to construct file path
-      const mvp = await APIService.getMVPById(mvpId);
-      if (!mvp) {
-        return { success: false, message: 'MVP not found.' };
-      }
-
-      // Determine the correct storage path for the MVP file.
-      // NOTE: This logic is duplicated from MVPUploadService.getMvpStoragePath
-      // because MVPUploadService is not in the allowed modification list for this turn.
-      // Ideally, this helper function would be public in MVPUploadService and reused.
-      let filePath: string;
-      const slug = mvp.slug;
-      if (mvp.last_synced_github_commit_sha) {
-        // The webhook function adds .zip extension
-        filePath = `mvps/${slug}/versions/github-${mvp.last_synced_github_commit_sha}/source.zip`;
-      } else if (mvp.version_number === '1.0.0' && !mvp.previous_ipfs_hash) {
-        filePath = `mvps/${slug}/source`;
-      } else {
-        filePath = `mvps/${slug}/versions/${mvp.version_number}/source`;
-      }
-
-      // 5. Generate a signed URL for the file
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from('mvp-files')
-        .createSignedUrl(filePath, 60); // URL valid for 60 seconds
-
-      if (signedUrlError || !signedUrlData?.signedUrl) {
-        console.error('Error generating signed URL:', signedUrlError);
-        return { success: false, message: 'Failed to generate download link. Please try again.' };
-      }
-
-      return { success: true, message: "Download initiated!", filePath: signedUrlData.signedUrl };
-    } catch (error: any) {
-      console.error('Error in downloadMVP:', error);
-      return { success: false, message: error.message || 'An unexpected error occurred during download.' };
+    const mvp = MOCK_MVPS.find(m => m.id === mvpId);
+    if (!mvp) {
+      return { success: false, message: 'MVP not found.' };
     }
+
+    // Simulate user profile and quota check
+    const { data: userProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('downloads_remaining, is_seller_approved, role')
+      .eq('id', userId)
+      .single();
+
+    if (profileError || !userProfile) {
+      return { success: false, message: 'User profile not found. Please log in again.' };
+    }
+
+    // Beta user has unlimited downloads
+    if (userId === 'beta-user-123') {
+      console.log('Beta user detected, unlimited downloads.');
+      // Simulate download record creation
+      await supabase.from('downloads').insert({
+        user_id: userId,
+        mvp_id: mvpId,
+        month_year: new Date().toISOString().substring(0, 7),
+      });
+      return { success: true, message: 'Download initiated!', filePath: `/mock-downloads/${mvp.slug}.zip` };
+    }
+
+    if (userProfile.downloads_remaining <= 0) {
+      return { success: false, message: 'You have reached your download quota. Please upgrade your plan.' };
+    }
+
+    // Simulate download record creation and quota decrement
+    const { error: downloadError } = await supabase.from('downloads').insert({
+      user_id: userId,
+      mvp_id: mvpId,
+      month_year: new Date().toISOString().substring(0, 7),
+    });
+
+    if (downloadError) {
+      console.error('Error creating download record:', downloadError);
+      return { success: false, message: 'Failed to record download. Please try again.' };
+    }
+
+    const { error: updateError } = await supabase.from('profiles').update({
+      downloads_remaining: userProfile.downloads_remaining - 1,
+      updated_at: new Date().toISOString(),
+    }).eq('id', userId);
+
+    if (updateError) {
+      console.error('Error updating download quota:', updateError);
+      // Even if quota update fails, allow download for now
+    }
+
+    return { success: true, message: 'Download initiated!', filePath: `/mock-downloads/${mvp.slug}.zip` };
   }
 
   static async getMVPReviews(mvpId: string): Promise<Review[]> {
-    try {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select(`
-          *,
-          user:profiles(email)
-        `)
-        .eq('mvp_id', mvpId)
-        .order('created_at', { ascending: false });
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const reviews = MOCK_REVIEWS.filter(review => review.mvp_id === mvpId);
 
+    // In a real app, fetch user details for each review
+    const reviewsWithUsers = await Promise.all(reviews.map(async (review) => {
+      const { data: user, error } = await supabase
+        .from('profiles')
+        .select('email, username')
+        .eq('id', review.user_id)
+        .single();
       if (error) {
-        console.error('Error fetching MVP reviews:', error);
-        throw error;
+        console.error('Error fetching user for review:', error);
+        return { ...review, user: undefined };
       }
+      return { ...review, user: user || undefined };
+    }));
 
-      return data?.map(review => ({
-        ...review,
-        user: review.user || { email: 'Anonymous' } // Ensure user object is always present
-      })) || [];
-    } catch (error: any) {
-      console.error('Error in getMVPReviews:', error);
-      throw error;
-    }
+    return reviewsWithUsers;
   }
 
   static async submitReview(reviewData: { mvpId: string; userId: string; rating: number; comment: string }): Promise<{ success: boolean; message: string; review?: Review }> {
-    try {
-      if (reviewData.rating < 1 || reviewData.rating > 5) {
-        return { success: false, message: "Rating must be between 1 and 5." };
-      }
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-      // In a real app, insert into Supabase reviews table:
-      const { data, error } = await supabase.from('reviews').insert([
-        {
-          mvp_id: reviewData.mvpId,
-          user_id: reviewData.userId,
-          rating: reviewData.rating,
-          review_text: reviewData.comment,
-          is_verified_buyer: true // Determine based on actual purchase history
-        }
-      ]).select().single();
-
-      if (error) throw error;
-
-      // Update MVP average rating
-      await supabase.rpc('update_mvp_rating', { mvp_id_param: reviewData.mvpId });
-
-      return { success: true, message: "Review submitted successfully!", review: data };
-    } catch (error: any) {
-      console.error('Error in submitReview:', error);
-      return { success: false, message: error.message || 'Failed to submit review.' };
+    if (reviewData.rating < 1 || reviewData.rating > 5) {
+      return { success: false, message: 'Rating must be between 1 and 5.' };
     }
+
+    // Simulate database insert
+    const newReview: Review = {
+      id: `review-${MOCK_REVIEWS.length + 1}`,
+      user_id: reviewData.userId,
+      mvp_id: reviewData.mvpId,
+      rating: reviewData.rating,
+      review_text: reviewData.comment,
+      created_at: new Date().toISOString(),
+      is_verified_buyer: true, // Simulate verified buyer
+      user: { email: 'currentuser@example.com' } // Mock current user
+    };
+    MOCK_REVIEWS.push(newReview);
+
+    // Simulate updating MVP average rating
+    const mvp = MOCK_MVPS.find(m => m.id === reviewData.mvpId);
+    if (mvp) {
+      const mvpReviews = MOCK_REVIEWS.filter(r => r.mvp_id === mvp.id);
+      const totalRating = mvpReviews.reduce((sum, r) => sum + r.rating, 0);
+      mvp.average_rating = parseFloat((totalRating / mvpReviews.length).toFixed(1));
+    }
+
+    return { success: true, message: 'Review submitted successfully!', review: newReview };
   }
 
   static async getUserDownloads(userId: string): Promise<Download[]> {
-    try {
-      // For beta user, return mock data
-      if (userId === 'beta-user-123') {
-        return [
-          {
-            id: 'mock-download-1',
-            user_id: 'beta-user-123',
-            mvp_id: 'demo-mvp-1',
-            downloaded_at: '2024-06-20T10:00:00Z',
-            month_year: '2024-06',
-            mvps: {
-              id: 'demo-mvp-1',
-              title: 'AI-Powered SaaS Starter Kit',
-              slug: 'ai-saas-starter-kit',
-              preview_images: ['https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=100'],
-            },
-          },
-          {
-            id: 'mock-download-2',
-            user_id: 'beta-user-123',
-            mvp_id: 'demo-mvp-2', // Assuming another demo MVP
-            downloaded_at: '2024-06-15T14:30:00Z',
-            month_year: '2024-06',
-            mvps: {
-              id: 'demo-mvp-2',
-              title: 'E-commerce Platform',
-              slug: 'ecommerce-platform',
-              preview_images: ['https://images.pexels.com/photos/230544/pexels-photo-230544.jpeg?auto=compress&cs=tinysrgb&w=100'],
-            },
-          },
-        ];
-      }
-
-      const { data, error } = await supabase
-        .from('downloads')
-        .select(`
-          *,
-          mvps(id, title, slug, preview_images)
-        `)
-        .eq('user_id', userId)
-        .order('downloaded_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching user downloads:', error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getUserDownloads:', error);
-      throw error;
-    }
-  }
-
-  static async createStripeConnectAccountLink(userId: string): Promise<{ success: boolean; accountLinkUrl?: string; message?: string }> {
-    try {
-      // For beta user, simulate success
-      if (userId === 'beta-user-123') {
-        return { success: true, accountLinkUrl: 'https://connect.stripe.com/oauth/v2/authorize?response_type=code&client_id=ca_mock_beta&scope=read_write' };
-      }
-
-      const origin = window.location.origin;
-      const { data, error } = await supabase.functions.invoke('create-stripe-connect-account', {
-        body: {
-          user_id: userId,
-          return_url: `${origin}/payouts?stripe_connect=success`,
-          refresh_url: `${origin}/payouts?stripe_connect=refresh`,
-        },
-      });
-
-      if (error) {
-        console.error('Error invoking create-stripe-connect-account function:', error);
-        return { success: false, message: error.message };
-      }
-
-      if (data?.account_link_url) {
-        return { success: true, accountLinkUrl: data.account_link_url };
-      } else {
-        return { success: false, message: data?.error || 'Failed to get Stripe Connect account link URL.' };
-      }
-    } catch (error: any) {
-      console.error('Error in createStripeConnectAccountLink:', error);
-      return { success: false, message: error.message || 'An unexpected error occurred.' };
-    }
-  }
-
-  static async getSellerPayouts(sellerId: string): Promise<any[] | null> {
-    try {
-      // For beta user, return mock data (handled in PayoutsPage for now)
-      if (sellerId === 'beta-user-123') {
-        return null; // PayoutsPage will use its own mock data
-      }
-
-      const { data, error } = await supabase
-        .from('payouts')
-        .select('*')
-        .eq('seller_id', sellerId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching seller payouts:', error);
-        throw error;
-      }
-
-      return data;
-    } catch (error: any) {
-      console.error('Error in getSellerPayouts:', error);
-      throw error;
-    }
-  }
-
-  static async getProfileByUsername(username: string) {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          username,
-          display_name,
-          bio,
-          profile_picture_url,
-          website_url,
-          social_links,
-          github_username,
-          created_at,
-          is_seller_approved
-        `)
-        .eq('username', username)
-        .single();
-
-      if (error) {
-        console.error('Error fetching profile by username:', error);
-        throw error;
-      }
-      return data;
-    } catch (error) {
-      console.error('Error in getProfileByUsername:', error);
-      throw error;
-    }
-  }
-
-  // Admin functions
-  static async getAdminStats(): Promise<any> {
-    // For now, return mock data
-    return {
-      totalUsers: 1247,
-      totalSellers: 89,
-      totalMVPs: 156,
-      totalDownloads: 3582,
-      revenue: 15790,
-    };
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return MOCK_DOWNLOADS.filter(dl => dl.user_id === userId);
   }
 
   static async getTotalMVPs(): Promise<number> {
-    try {
-      const { count, error } = await supabase
-        .from('mvps')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'approved'); // Only count approved MVPs
-      
-      if (error) {
-        console.error('Error fetching total MVPs count:', error);
-        return 0;
-      }
-      
-      return count || 0;
-    } catch (error) {
-      console.error('Error in getTotalMVPs:', error);
-      return 0;
-    }
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return MOCK_MVPS.filter(mvp => mvp.status === 'approved').length;
   }
 
   static async getTotalDeployments(): Promise<number> {
-    try {
-      const { count, error } = await supabase
-        .from('deployments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'completed'); // Only count successful deployments
-      
-      if (error) {
-        console.error('Error fetching total deployments count:', error);
-        return 0;
-      }
-      
-      return count || 0;
-    } catch (error) {
-      console.error('Error in getTotalDeployments:', error);
-      return 0;
-    }
-  }
-}
-
-// GitHub Integration Methods
-export class GitHubService {
-  /**
-   * Helper to get GitHub App installation token
-   */
-  private static async getInstallationToken(installationId: number): Promise<string | null> {
-    try {
-      const { data, error } = await supabase.functions.invoke('get-github-app-token', {
-        body: { installation_id: installationId },
-      });
-
-      if (error) {
-        console.error('Error invoking get-github-app-token function:', error);
-        throw new Error('Failed to get GitHub App installation token');
-      }
-      if (data?.token) {
-        return data.token;
-      } else {
-        console.warn('get-github-app-token did not return a token.');
-        return null;
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch GitHub App installation token:', error);
-      return null;
-    }
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    // In a real app, this would query the 'deployments' table
+    return 12345; // Mock value
   }
 
-  /**
-   * Link a GitHub repository to an MVP
-   * This function now also returns the GitHub App installation URL.
-   */
-  static async linkGitHubRepository(
-    mvpId: string, 
-    userId: string, // Add userId parameter
-    owner: string, 
-    repoName: string,
-    webhookSecret: string // Add webhookSecret parameter
-  ): Promise<{ success: boolean; message: string; githubAppInstallUrl?: string }> {
-    try {
-      // Validate GitHub repository exists (using unauthenticated call first)
-      const repoValidation = await this.validateGitHubRepository(owner, repoName, userId);
-      if (!repoValidation.success) {
-        return { success: false, message: repoValidation.message };
-      }
+  static async createStripeConnectAccountLink(userId: string): Promise<{ success: boolean; message: string; accountLinkUrl?: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Update MVP with GitHub repository information and webhook secret
-      // Note: github_app_installation_id will be set by the callback function
-      const { error } = await supabase
-        .from('mvps')
-        .update({
-          github_repo_owner: owner,
-          github_repo_name: repoName,
-          github_webhook_secret: webhookSecret, // Store the webhook secret
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', mvpId);
+    // In a real scenario, this would call your Supabase Edge Function
+    // which then calls Stripe API to create an account link.
+    // For mock, we return a dummy URL.
+    const mockAccountLinkUrl = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=ca_mock_client_id&scope=read_write&state=${userId}`;
 
-      if (error) {
-        console.error('Error linking GitHub repository:', error);
-        return { success: false, message: 'Failed to link GitHub repository' };
-      }
-
-      // Construct GitHub App installation URL
-      // The VITE_GITHUB_APP_SLUG needs to be configured in your .env file
-      const githubAppSlug = import.meta.env.VITE_GITHUB_APP_SLUG;
-      if (!githubAppSlug) {
-        console.error('VITE_GITHUB_APP_SLUG is not set in environment variables.');
-        return { success: false, message: 'GitHub App slug not configured.' };
-      }
-      
-      // The 'state' parameter is crucial for linking the installation back to the user
-      const installUrl = `https://github.com/apps/${githubAppSlug}/installations/new?state=${userId}`; // Changed from mvpId to userId
-
-      return { 
-        success: true, 
-        message: 'GitHub repository linked successfully! Please install the GitHub App to enable full integration.',
-        githubAppInstallUrl: installUrl
-      };
-    } catch (error: any) {
-      console.error('Error in linkGitHubRepository:', error);
-      return { success: false, message: error.message || 'Failed to link GitHub repository' };
-    }
-  }
-
-  /**
-   * Unlink a GitHub repository from an MVP
-   */
-  static async unlinkGitHubRepository(mvpId: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const { error } = await supabase
-        .from('mvps')
-        .update({
-          github_repo_owner: null,
-          github_repo_name: null,
-          last_synced_github_commit_sha: null,
-          github_webhook_secret: null, // Clear the webhook secret
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', mvpId);
-
-      if (error) {
-        console.error('Error unlinking GitHub repository:', error);
-        return { success: false, message: 'Failed to unlink GitHub repository' };
-      }
-
-      return { success: true, message: 'GitHub repository unlinked successfully' };
-    } catch (error: any) {
-      console.error('Error in unlinkGitHubRepository:', error);
-      return { success: false, message: error.message || 'Failed to unlink GitHub repository' };
-    }
-  }
-
-  /**
-   * Validate that a GitHub repository exists and is accessible.
-   * Can use installation token for private repos.
-   */
-  static async validateGitHubRepository(
-    owner: string, 
-    repoName: string,
-    userId?: string // Optional userId to fetch installation token from profiles
-  ): Promise<{ success: boolean; message: string; repoData?: any }> {
-    let headers: HeadersInit = {
-      'Accept': 'application/vnd.github.v3+json',
-      'User-Agent': 'MVP-Library-Platform'
+    return {
+      success: true,
+      message: 'Stripe Connect account link created successfully.',
+      accountLinkUrl: mockAccountLinkUrl
     };
-
-    if (userId) { // Changed from mvpId to userId
-      const { data: profile, error: profileFetchError } = await supabase // Changed from mvp to profile
-        .from('profiles') // Changed from mvps to profiles
-        .select('github_app_installation_id')
-        .eq('id', userId) // Changed from mvpId to userId
-        .single();
-
-      if (profileFetchError || !profile || !profile.github_app_installation_id) { // Changed from mvp to profile
-        // If profile or installation ID not found, proceed without token (for public repos)
-        console.warn(`No GitHub App installation ID found for user ${userId}. Attempting public access.`); // Changed from MVP to user
-      } else {
-        const token = await this.getInstallationToken(profile.github_app_installation_id); // Changed from mvp to profile
-        if (token) {
-          headers = { ...headers, 'Authorization': `Bearer ${token}` };
-        } else {
-          console.warn(`Failed to get installation token for user ${userId}. Attempting public access.`); // Changed from MVP to user
-        }
-      }
-    }
-
-    try {
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
-        headers: headers
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return { 
-            success: false, 
-            message: 'Repository not found. Please check the owner and repository name.' 
-          };
-        } else if (response.status === 403) {
-          return { 
-            success: false, 
-            message: 'Repository is private or access is forbidden. Ensure the GitHub App is installed and has access.' 
-          };
-        } else {
-          return { 
-            success: false, 
-            message: `Failed to access GitHub repository: ${response.statusText}` 
-          };
-        }
-      }
-
-      const repoData = await response.json();
-      return { 
-        success: true, 
-        message: 'Repository validated successfully', 
-        repoData 
-      };
-    } catch (error: any) {
-      console.error('Error validating GitHub repository:', error);
-      return { 
-        success: false, 
-        message: 'Network error while validating repository. Please check your connection.' 
-      };
-    }
   }
 
-  /**
-   * Get the latest release or commit information from a GitHub repository.
-   * Can use installation token for private repos.
-   */
-  static async getLatestRepositoryInfo(
-    owner: string, 
-    repoName: string,
-    userId?: string // Optional userId to fetch installation token
-  ): Promise<{ success: boolean; data?: any; message: string }> {
-    let headers: HeadersInit = {
-      'Accept': 'application/vnd.github.v3+json',
-      'User-Agent': 'MVP-Library-Platform'
-    };
+  static async getSellerPayouts(sellerId: string): Promise<any[]> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (userId) { // Changed from mvpId to userId
-      const { data: profile, error: profileFetchError } = await supabase // Changed from mvp to profile
-        .from('profiles') // Changed from mvps to profiles
-        .select('github_app_installation_id')
-        .eq('id', userId) // Changed from mvpId to userId
-        .single();
+    // Mock data for payouts
+    const mockPayouts = [
+      {
+        id: 'payout-1',
+        month_year: '2024-01',
+        total_downloads: 50,
+        commission_amount: 125.00,
+        platform_fee_deducted: 37.50,
+        status: 'completed',
+        created_at: '2024-02-01T00:00:00Z',
+        processed_at: '2024-02-05T00:00:00Z',
+      },
+      {
+        id: 'payout-2',
+        month_year: '2024-02',
+        total_downloads: 75,
+        commission_amount: 187.50,
+        platform_fee_deducted: 56.25,
+        status: 'pending',
+        created_at: '2024-03-01T00:00:00Z',
+        processed_at: null,
+      },
+    ];
 
-      if (profileFetchError || !profile || !profile.github_app_installation_id) { // Changed from mvp to profile
-        console.warn(`No GitHub App installation ID found for user ${userId}. Attempting public access.`); // Changed from MVP to user
-      } else {
-        const token = await this.getInstallationToken(profile.github_app_installation_id); // Changed from mvp to profile
-        if (token) {
-          headers = { ...headers, 'Authorization': `Bearer ${token}` };
-        } else {
-          console.warn(`Failed to get installation token for user ${userId}. Attempting public access.`); // Changed from MVP to user
-        }
-      }
-    }
-
-    try {
-      // First try to get the latest release
-      const releaseResponse = await fetch(
-        `https://api.github.com/repos/${owner}/${repoName}/releases/latest`,
-        { headers: headers }
-      );
-
-      if (releaseResponse.ok) {
-        const releaseData = await releaseResponse.json();
-        return {
-          success: true,
-          data: {
-            type: 'release',
-            version: releaseData.tag_name,
-            name: releaseData.name,
-            body: releaseData.body,
-            published_at: releaseData.published_at,
-            commit_sha: releaseData.target_commitish,
-            zipball_url: releaseData.zipball_url
-          },
-          message: 'Latest release found'
-        };
-      }
-
-      // If no releases, get the latest commit from default branch
-      const commitsResponse = await fetch(
-        `https://api.github.com/repos/${owner}/${repoName}/commits`,
-        { headers: headers }
-      );
-
-      if (!commitsResponse.ok) {
-        return {
-          success: false,
-          message: `Failed to fetch repository information: ${commitsResponse.statusText}`
-        };
-      }
-
-      const commitsData = await commitsResponse.json();
-      if (!commitsData || commitsData.length === 0) {
-        return {
-          success: false,
-          message: 'No commits found in repository.'
-        };
-      }
-      const latestCommit = commitsData[0];
-
-      return {
-        success: true,
-        data: {
-          type: 'commit',
-          commit_sha: latestCommit.sha,
-          message: latestCommit.commit.author.name,
-          author: latestCommit.commit.author.name,
-          date: latestCommit.commit.author.date,
-          archive_url: `https://api.github.com/repos/${owner}/${repoName}/zipball/${latestCommit.sha}`
-        },
-        message: 'Latest commit found'
-      };
-    } catch (error: any) {
-      console.error('Error getting repository info:', error);
-      return {
-        success: false,
-        message: error.message || 'Failed to fetch repository information'
-      };
-    }
+    return mockPayouts;
   }
 
-  /**
-   * Completes the GitHub App installation process by calling the Edge Function.
-   */
-  static async completeGitHubAppInstallation(
-    code: string,
-    installationId: number,
-    userId: string // Changed from mvpId to userId
-  ): Promise<{ success: boolean; message: string }> {
-    try {
-      const { data, error } = await supabase.functions.invoke('create-github-app-installation', {
-        body: {
-          code: code,
-          installation_id: installationId,
-          state: userId, // 'state' is used to pass the userId back
-        },
-      });
-
-      if (error) {
-        console.error('Error invoking create-github-app-installation function:', error);
-        return { success: false, message: error.message };
-      }
-
-      if (data?.success) {
-        return { success: true, message: data.message };
-      } else {
-        return { success: false, message: data?.error || 'Failed to complete GitHub App installation.' };
-      }
-    } catch (error: any) {
-      console.error('Error in completeGitHubAppInstallation:', error);
-      return { success: false, message: error.message || 'An unexpected error occurred.' };
-    }
-  }
-
-  /**
-   * Initiates the GitHub OAuth flow by calling the Edge Function.
-   */
-  static async initiateGitHubOAuth(userId: string): Promise<{ success: boolean; githubAuthUrl?: string; message: string }> {
-    try {
-      const { data, error } = await supabase.functions.invoke('initiate-github-oauth', {
-        body: { user_id: userId },
-      });
-
-      if (error) {
-        console.error('Error invoking initiate-github-oauth function:', error);
-        return { success: false, message: error.message };
-      }
-
-      if (data?.github_auth_url) {
-        return { success: true, githubAuthUrl: data.github_auth_url, message: 'GitHub OAuth initiated successfully.' };
-      } else {
-        return { success: false, message: data?.error || 'Failed to get GitHub OAuth URL.' };
-      }
-    } catch (error: any) {
-      console.error('Error in initiateGitHubOAuth:', error);
-      return { success: false, message: error.message || 'An unexpected error occurred.' };
-    }
-  }
-}
-
-/**
- * DeploymentService handles operations related to deploying MVPs to Netlify
- * via GitHub integration. It creates GitHub repositories, pushes MVP code,
- * and triggers the external Railway worker for deployment processing.
- */
-export class DeploymentService {
-  /**
-   * Starts the deployment process by creating a deployment record and initiating
-   * the GitHub repository creation process.
-   */
-  static async startDeployment(
-    userId: string,
-    mvpId: string,
-    repoName: string
-  ): Promise<{
-    success: boolean;
-    message?: string;
-    deployment_id?: string;
-    github_auth_url?: string;
-  }> {
-    try {
-      // Log the inputs for debugging
-      console.log(`Deployment inputs - userId: ${userId}, mvpId: ${mvpId}, repoName: ${repoName}`);
-
-      // Step 1: Get the storage path for the MVP
-      const mvp = await APIService.getMVPById(mvpId);
-      if (!mvp) {
-        throw new Error('MVP not found');
-      }
-
-      // Get the proper storage path using MVPUploadService
-      const storagePath = MVPUploadService.getMvpStoragePath(mvp);
-
-      // Step 2: Create a deployment record in Supabase
-      const { data: deployment, error } = await supabase
-        .from('deployments')
-        .insert({
-          user_id: userId,
-          mvp_id: mvpId,
-          storage_path: storagePath,
-          repo_name: repoName,
-          status: 'initializing',
-          branch: 'main', // Default branch
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating deployment record:', error);
-        throw new Error('Failed to create deployment record');
-      }
-
-      // Step 3: Check if user has a GitHub token
-      const { data: githubToken, error: tokenError } = await supabase
-        .from('user_oauth_tokens')
-        .select('access_token')
-        .eq('user_id', userId)
-        .eq('provider', 'github')
-        .maybeSingle();
-
-      if (tokenError) {
-        console.error('Error checking GitHub token:', tokenError);
-        throw new Error('Failed to verify GitHub authentication');
-      }
-
-      // Step 4: If no GitHub token, redirect to GitHub OAuth
-      if (!githubToken || !githubToken.access_token) {
-        console.log('No GitHub token found, initiating GitHub OAuth flow');
-        
-        // Call the initiate-buyer-github-oauth Edge Function
-        const { data: oauthData, error: oauthError } = await supabase.functions.invoke(
-          'initiate-buyer-github-oauth',
-          {
-            body: {
-              user_id: userId,
-              mvp_id: mvpId,
-            },
-          }
-        );
-
-        if (oauthError || !oauthData || !oauthData.github_auth_url) {
-          console.error('Error initiating GitHub OAuth:', oauthError || 'No auth URL received');
-          throw new Error('Failed to initiate GitHub authentication');
-        }
-
-        // Return the GitHub auth URL for redirection
-        return {
-          success: true,
-          message: 'GitHub authentication required',
-          deployment_id: deployment.id,
-          github_auth_url: oauthData.github_auth_url,
-        };
-      }
-
-      // Step 5: Create GitHub repository (only create, not push MVP yet)
-      console.log('Creating GitHub repository...');
-      const { data: repoData, error: repoError } = await supabase.functions.invoke(
-        'create-buyer-repo-and-push-mvp',
-        {
-          body: {
-            user_id: userId,
-            mvp_id: mvpId,
-            deployment_id: deployment.id,
-            repo_name: repoName,
-           },
-        }
-      );
-
-      if (repoError || !repoData.success) {
-        console.error('Error creating GitHub repository:', repoError || repoData.error);
-        throw new Error(repoData?.error || 'Failed to create GitHub repository');
-      }
-
-      // Step 6: Trigger the Railway worker
-      console.log('Triggering Railway worker for deployment:', deployment.id);
-      const workerResponse = await fetch('https://startifi-worker-production.up.railway.app/deploy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          deployment_id: deployment.id,
-        }),
-      });
-
-      if (!workerResponse.ok) {
-        const errorData = await workerResponse.text();
-        console.error('Railway worker error:', errorData);
-        throw new Error('Failed to initiate deployment process');
-      }
-
-      const workerData = await workerResponse.json();
-      console.log('Railway worker response:', workerData);
-
-      // Step 7: Return success
-      return {
-        success: true,
-        message: 'Deployment initiated successfully',
-        deployment_id: deployment.id,
-      };
-    } catch (error: any) {
-      console.error('Error in startDeployment:', error);
-      return {
-        success: false,
-        message: error.message || 'An unexpected error occurred during deployment',
-      };
-    }
-  }
-
-  /**
-   * Gets the current status of a deployment.
-   */
-  static async getDeploymentStatus(
-    deploymentId: string
-  ): Promise<{
-    status: string;
-    error_message?: string;
-    github_repo_url?: string;
-    netlify_site_url?: string;
-  }> {
-    try {
-      const { data, error } = await supabase
-        .from('deployments')
-        .select('*')
-        .eq('id', deployment.id)
-        .single();
-
-      if (error) {
-        throw new Error('Failed to fetch deployment status');
-      }
-
-      if (!data) {
-        throw new Error('Deployment not found');
-      }
-
-      return {
-        status: data.status,
-        error_message: data.error_message,
-        github_repo_url: data.github_repo_url,
-        netlify_site_url: data.netlify_site_url,
-      };
-    } catch (error: any) {
-      console.error('Error in getDeploymentStatus:', error);
-      return {
-        status: 'error',
-        error_message: error.message || 'An unexpected error occurred',
-      };
-    }
-  }
-
-  /**
-   * Gets all deployments for a user.
-   */
-  static async getUserDeployments(userId: string): Promise<{
-    success: boolean;
-    deployments?: any[];
-    message?: string;
-  }> {
-    try {
-      const { data, error } = await supabase
-        .from('deployments')
-        .select(`
-          *,
-          mvps(id, title, preview_images)
-        `)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw new Error('Failed to fetch deployments');
-      }
-
-      return {
-        success: true,
-        deployments: data,
-      };
-    } catch (error: any) {
-      console.error('Error in getUserDeployments:', error);
-      return {
-        success: false,
-        message: error.message || 'An unexpected error occurred',
-      };
-    }
-  }
-
-  /**
-   * Initiates the GitHub OAuth flow for a general purpose (not tied to a specific MVP deployment).
-   */
-  static async initiateGeneralGitHubAuth(userId: string): Promise<{
-    success: boolean;
-    github_auth_url?: string;
-    message?: string;
-  }> {
-    try {
-      // Call the initiate-buyer-github-oauth Edge Function
-      const { data, error } = await supabase.functions.invoke(
-        'initiate-buyer-github-oauth',
-        {
-          body: {
-            user_id: userId,
-          },
-        }
-      );
-
-      if (error || !data || !data.github_auth_url) {
-        throw new Error(error?.message || 'Failed to initiate GitHub authentication');
-      }
-
-      return {
-        success: true,
-        github_auth_url: data.github_auth_url,
-      };
-    } catch (error: any) {
-      console.error('Error in initiateGeneralGitHubAuth:', error);
-      return {
-        success: false,
-        message: error.message || 'An unexpected error occurred',
-      };
-    }
-  }
-
-  /**
-   * Completes the GitHub authentication flow.
-   */
-  static async completeGitHubAuth(
-    code: string,
-    state: string
-  ): Promise<{
-    success: boolean;
-    github_username?: string;
-    mvp_id?: string;
-    message?: string;
-  }> {
-    try {
-      // Call the handle-buyer-github-callback Edge Function
-      const { data, error } = await supabase.functions.invoke(
-        'handle-buyer-github-callback',
-        {
-          body: {
-            code,
-            state,
-          },
-        }
-      );
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      return {
-        success: true,
-        github_username: data.github_username,
-        mvp_id: data.mvp_id,
-        message: 'GitHub authentication completed successfully',
-      };
-    } catch (error: any) {
-      console.error('Error in completeGitHubAuth:', error);
-      return {
-        success: false,
-        message: error.message || 'An unexpected error occurred',
-      };
-    }
-  }
-}
-
-/**
- * Service for handling notifications
- */
-export class NotificationService {
-  /**
-   * Get notifications for a user
-   * @param userId The ID of the user
-   * @param readStatus Optional filter by read status
-   */
-  static async getNotifications(userId: string, readStatus?: boolean) {
-    try {
-      let query = supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (readStatus !== undefined) {
-        query = query.eq('read', readStatus);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        throw error;
-      }
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getNotifications:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get the count of unread notifications for a user
-   * @param userId The ID of the user
-   */
-  static async getUnreadNotificationCount(userId: string): Promise<number> {
-    try {
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('read', false);
-
-      if (error) {
-        console.error('Error fetching unread notification count:', error);
-        throw error;
-      }
-      return count || 0;
-    } catch (error: any) {
-      console.error('Error in getUnreadNotificationCount:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Mark a specific notification as read
-   * @param notificationId The ID of the notification to mark as read
-   */
-  static async markNotificationAsRead(notificationId: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true, updated_at: new Date().toISOString() })
-        .eq('id', notificationId);
-
-      if (error) {
-        console.error('Error marking notification as read:', error);
-        return { success: false, error: error.message };
-      }
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error in markNotificationAsRead:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Mark all notifications for a user as read
-   * @param userId The ID of the user
-   */
-  static async markAllNotificationsAsRead(userId: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true, updated_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .eq('read', false);
-
-      if (error) {
-        console.error('Error marking all notifications as read:', error);
-        return { success: false, error: error.message };
-      }
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error in markAllNotificationsAsRead:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Create a new notification
-   * @param notificationData The data for the new notification
-   */
-  static async createNotification(notificationData: {
-    user_id: string;
-    type: string;
-    message: string;
-    link?: string;
-  }): Promise<{ success: boolean; error?: string }> {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert([notificationData]);
-
-      if (error) {
-        console.error('Error creating notification:', error);
-        return { success: false, error: error.message };
-      }
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error in createNotification:', error);
-      return { success: false, error: error.message };
-    }
-  }
-}
-
-/**
- * Service for handling refund requests
- */
-export class RefundService {
-  /**
-   * Get refund requests for a user
-   * @param userId The ID of the user
-   */
-  static async getUserRefundRequests(userId: string): Promise<RefundRequest[]> {
-    try {
-      const { data, error } = await supabase
-        .from('refund_requests')
-        .select(`
-          *,
-          user:profiles(email, username),
-          subscription:subscriptions(plan_type, stripe_subscription_id)
-        `)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching refund requests:', error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getUserRefundRequests:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Submit a new refund request
-   * @param refundData The data for the new refund request
-   */
-  static async submitRefundRequest(refundData: {
+  static async submitRefundRequest(requestData: {
     userId: string;
     subscriptionId: string;
     reason: string;
     amountRequested: number;
   }): Promise<{ success: boolean; message: string }> {
-    try {
-      const { error } = await supabase
-        .from('refund_requests')
-        .insert([{
-          user_id: refundData.userId,
-          subscription_id: refundData.subscriptionId,
-          reason: refundData.reason,
-          amount_requested: refundData.amountRequested,
-          status: 'pending'
-        }]);
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-      if (error) {
-        console.error('Error submitting refund request:', error);
-        throw error;
-      }
+    const newRefundRequest: RefundRequest = {
+      id: uuidv4(),
+      user_id: requestData.userId,
+      subscription_id: requestData.subscriptionId,
+      reason: requestData.reason,
+      amount_requested: requestData.amountRequested,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+    MOCK_REFUND_REQUESTS.push(newRefundRequest);
 
-      // Create notification for admins (you'd need to fetch admin users)
-      try {
-        // In a real application, you would fetch admin user IDs and notify them
-        // For now, just log the action
-        console.log('Refund request created, would notify admins');
-      } catch (notifyError) {
-        console.error('Error creating notification:', notifyError);
-        // Don't fail the operation if notification fails
-      }
-
-      return { 
-        success: true, 
-        message: 'Refund request submitted successfully. Our team will review your request within 2-3 business days.' 
-      };
-    } catch (error: any) {
-      console.error('Error in submitRefundRequest:', error);
-      return { 
-        success: false, 
-        message: error.message || 'Failed to submit refund request. Please try again.' 
-      };
-    }
-  }
-}
-
-/**
- * Service for handling disputes
- */
-export class DisputeService {
-  /**
-   * Get disputes for a user
-   * @param userId The ID of the user
-   */
-  static async getUserDisputes(userId: string): Promise<Dispute[]> {
-    try {
-      const { data, error } = await supabase
-        .from('disputes')
-        .select(`
-          *,
-          buyer:profiles!disputes_buyer_id_fkey(email, username),
-          seller:profiles!disputes_seller_id_fkey(email, username),
-          mvp:mvps(title, slug)
-        `)
-        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-        .order('opened_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching disputes:', error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error: any) {
-      console.error('Error in getUserDisputes:', error);
-      throw error;
-    }
+    return { success: true, message: 'Refund request submitted successfully. We will review it shortly.' };
   }
 
-  /**
-   * Get a specific dispute by ID
-   * @param disputeId The ID of the dispute
-   */
-  static async getDisputeById(disputeId: string): Promise<Dispute | null> {
-    try {
-      const { data, error } = await supabase
-        .from('disputes')
-        .select(`
-          *,
-          buyer:profiles!disputes_buyer_id_fkey(email, username),
-          seller:profiles!disputes_seller_id_fkey(email, username),
-          mvp:mvps(title, slug)
-        `)
-        .eq('id', disputeId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching dispute details:', error);
-        throw error;
-      }
-
-      return data;
-    } catch (error: any) {
-      console.error('Error in getDisputeById:', error);
-      throw error;
-    }
+  static async getUserRefundRequests(userId: string): Promise<RefundRequest[]> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return MOCK_REFUND_REQUESTS.filter(req => req.user_id === userId);
   }
 
-  /**
-   * Submit a new dispute
-   * @param disputeData The data for the new dispute
-   */
   static async submitDispute(disputeData: {
     buyerId: string;
     sellerId: string;
@@ -1477,92 +763,590 @@ export class DisputeService {
     reason: string;
     details: string;
   }): Promise<{ success: boolean; message: string }> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const newDispute: Dispute = {
+      id: uuidv4(),
+      buyer_id: disputeData.buyerId,
+      seller_id: disputeData.sellerId,
+      mvp_id: disputeData.mvpId,
+      reason: disputeData.reason,
+      details: disputeData.details,
+      status: 'open',
+      opened_at: new Date().toISOString(),
+    };
+    MOCK_DISPUTES.push(newDispute);
+
+    return { success: true, message: 'Dispute submitted successfully. We will review it shortly.' };
+  }
+
+  static async getUserDisputes(userId: string): Promise<Dispute[]> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return MOCK_DISPUTES.filter(d => d.buyer_id === userId || d.seller_id === userId);
+  }
+
+  static async getDisputeById(disputeId: string): Promise<Dispute | null> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const dispute = MOCK_DISPUTES.find(d => d.id === disputeId);
+
+    if (dispute) {
+      // Populate buyer, seller, and MVP details
+      const buyerProfile = await supabase.from('profiles').select('email, username').eq('id', dispute.buyer_id).single();
+      const sellerProfile = await supabase.from('profiles').select('email, username').eq('id', dispute.seller_id).single();
+      const mvpDetails = MOCK_MVPS.find(m => m.id === dispute.mvp_id);
+
+      return {
+        ...dispute,
+        buyer: buyerProfile.data || undefined,
+        seller: sellerProfile.data || undefined,
+        mvp: mvpDetails ? { title: mvpDetails.title, slug: mvpDetails.slug } : undefined,
+      };
+    }
+    return null;
+  }
+}
+
+export class NotificationService {
+  static async getNotifications(userId: string, unreadOnly: boolean = false): Promise<Notification[]> {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+    let userNotifications = MOCK_NOTIFICATIONS.filter(n => n.user_id === userId);
+    if (unreadOnly) {
+      userNotifications = userNotifications.filter(n => !n.read);
+    }
+    return userNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+
+  static async getUnreadNotificationCount(userId: string): Promise<number> {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return MOCK_NOTIFICATIONS.filter(n => n.user_id === userId && !n.read).length;
+  }
+
+  static async markNotificationAsRead(notificationId: string): Promise<{ success: boolean; error?: string }> {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const notification = MOCK_NOTIFICATIONS.find(n => n.id === notificationId);
+    if (notification) {
+      notification.read = true;
+      return { success: true };
+    }
+    return { success: false, error: 'Notification not found' };
+  }
+
+  static async markAllNotificationsAsRead(userId: string): Promise<{ success: boolean; error?: string }> {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    MOCK_NOTIFICATIONS.forEach(n => {
+      if (n.user_id === userId) {
+        n.read = true;
+      }
+    });
+    return { success: true };
+  }
+
+  static async createNotification(notificationData: Omit<Notification, 'id' | 'read' | 'created_at'>): Promise<{ success: boolean; error?: string }> {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const newNotification: Notification = {
+      id: uuidv4(),
+      read: false,
+      created_at: new Date().toISOString(),
+      ...notificationData
+    };
+    MOCK_NOTIFICATIONS.push(newNotification);
+    return { success: true };
+  }
+}
+
+export class GitHubService {
+  static async validateGitHubRepository(owner: string, repoName: string, userId: string): Promise<{ success: boolean; message: string; repoData?: any }> {
+    // Simulate API call to GitHub via Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // In a real scenario, this would call your Supabase Edge Function
+    // which then calls GitHub API to validate the repo.
+    // For mock, we return success if repoName is not 'invalid'
+    if (repoName.toLowerCase() === 'invalid') {
+      return { success: false, message: 'Repository not found or not accessible.' };
+    }
+
+    return {
+      success: true,
+      message: 'Repository found and accessible!',
+      repoData: {
+        full_name: `${owner}/${repoName}`,
+        description: 'A mock repository for testing purposes.',
+        stargazers_count: 100,
+        forks_count: 20,
+        private: false,
+      }
+    };
+  }
+
+  static async linkGitHubRepository(mvpId: string, userId: string, owner: string, repoName: string, webhookSecret: string): Promise<{ success: boolean; message: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // In a real scenario, this would call your Supabase Edge Function
+    // to update the MVP record with GitHub details and webhook secret.
+    const mvp = MOCK_MVPS.find(m => m.id === mvpId);
+    if (mvp) {
+      mvp.github_repo_owner = owner;
+      mvp.github_repo_name = repoName;
+      mvp.github_webhook_secret = webhookSecret;
+      mvp.github_url = `https://github.com/${owner}/${repoName}`;
+      return { success: true, message: 'GitHub repository linked successfully!' };
+    }
+    return { success: false, message: 'MVP not found.' };
+  }
+
+  static async unlinkGitHubRepository(mvpId: string): Promise<{ success: boolean; message: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const mvp = MOCK_MVPS.find(m => m.id === mvpId);
+    if (mvp) {
+      mvp.github_repo_owner = undefined;
+      mvp.github_repo_name = undefined;
+      mvp.github_webhook_secret = undefined;
+      mvp.github_url = undefined;
+      mvp.last_synced_github_commit_sha = undefined;
+      return { success: true, message: 'GitHub repository unlinked successfully.' };
+    }
+    return { success: false, message: 'MVP not found.' };
+  }
+
+  static async completeGitHubAppInstallation(code: string, installationId: number, userId: string): Promise<{ success: boolean; message: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // In a real scenario, this would call your Supabase Edge Function
+    // to exchange the code for a token and update the user's profile
+    // with the installationId.
+    console.log(`Mock: Completing GitHub App installation for user ${userId} with installation ID ${installationId}`);
+
+    // Simulate updating the user's profile in Supabase
+    const { error } = await supabase
+      .from('profiles')
+      .update({ github_app_installation_id: installationId })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Mock: Error updating user profile with GitHub App installation ID:', error);
+      return { success: false, message: 'Failed to update user profile with GitHub App installation ID.' };
+    }
+
+    return { success: true, message: 'GitHub App installed and linked to your profile successfully!' };
+  }
+
+  static async getLatestRepositoryInfo(owner: string, repoName: string, userId: string): Promise<{ success: boolean; message: string; data?: any }> {
+    // Simulate API call to GitHub via Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Mock data for latest commit/release
+    return {
+      success: true,
+      message: 'Fetched latest repository info.',
+      data: {
+        commit_sha: 'mocksha1234567890abcdef',
+        message: 'feat: Add new feature and fix bugs',
+        type: 'commit',
+        zipball_url: `/mock-downloads/${repoName}-latest.zip`,
+      }
+    };
+  }
+}
+
+export class DeploymentService {
+  static async startDeployment(userId: string, mvpId: string, repoName: string): Promise<{ success: boolean; message: string; github_auth_url?: string; deployment_id?: string }> {
+    // 1. Create initial deployment record in Supabase
+    const { data: newDeployment, error: insertError } = await supabase
+      .from('deployments')
+      .insert({
+        user_id: userId,
+        mvp_id: mvpId,
+        repo_name: repoName,
+        status: 'initializing',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (insertError || !newDeployment) {
+      console.error('Error creating initial deployment record:', insertError);
+      return { success: false, message: 'Failed to start deployment: Could not create initial record.' };
+    }
+
+    const deploymentId = newDeployment.id;
+    console.log(`Initial deployment record created with ID: ${deploymentId}`);
+
+    // 2. Initiate GitHub OAuth flow, passing the deployment_id
     try {
-      const { error } = await supabase
-        .from('disputes')
-        .insert([{
-          buyer_id: disputeData.buyerId,
-          seller_id: disputeData.sellerId,
-          mvp_id: disputeData.mvpId,
-          reason: disputeData.reason,
-          details: disputeData.details,
-          status: 'open'
-        }]);
+      const { data, error } = await supabase.functions.invoke('initiate-buyer-github-oauth', {
+        body: {
+          user_id: userId,
+          mvp_id: mvpId,
+          deployment_id: deploymentId, // Pass the deployment_id
+        },
+      });
 
       if (error) {
-        console.error('Error submitting dispute:', error);
-        throw error;
+        console.error('Error invoking initiate-buyer-github-oauth:', error);
+        // Update deployment status to failed if the initiation fails
+        await supabase.from('deployments').update({
+          status: 'failed',
+          error_message: error.message || 'Failed to initiate GitHub OAuth',
+          updated_at: new Date().toISOString(),
+        }).eq('id', deploymentId);
+        return { success: false, message: error.message || 'Failed to initiate GitHub authentication.' };
       }
 
-      // Notify the seller about the dispute
-      try {
-        await NotificationService.createNotification({
-          user_id: disputeData.sellerId,
-          type: 'new_dispute',
-          message: `A buyer has opened a dispute regarding one of your MVPs. Reason: ${disputeData.reason}`,
-          link: '/disputes'
-        });
-      } catch (notifyError) {
-        console.error('Error creating notification:', notifyError);
-        // Don't fail the operation if notification fails
+      if (data?.github_auth_url) {
+        return {
+          success: true,
+          message: 'Redirecting to GitHub for authentication...',
+          github_auth_url: data.github_auth_url,
+          deployment_id: deploymentId, // Return deployment_id
+        };
+      } else {
+        // This case should ideally not happen if the Edge Function works as expected
+        // but good for defensive programming.
+        await supabase.from('deployments').update({
+          status: 'failed',
+          error_message: 'GitHub auth URL not returned from initiate-buyer-github-oauth',
+          updated_at: new Date().toISOString(),
+        }).eq('id', deploymentId);
+        return { success: false, message: 'Failed to get GitHub authentication URL.' };
+      }
+    } catch (error: any) {
+      console.error('Unexpected error during startDeployment:', error);
+      await supabase.from('deployments').update({
+        status: 'failed',
+        error_message: error.message || 'An unexpected error occurred during deployment initiation.',
+        updated_at: new Date().toISOString(),
+      }).eq('id', deploymentId);
+      return { success: false, message: error.message || 'An unexpected error occurred.' };
+    }
+  }
+
+  static async completeGitHubAuth(code: string, state: string): Promise<{ success: boolean; message: string; github_username?: string; mvp_id?: string; deployment_id?: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('handle-buyer-github-callback', {
+        body: { code, state },
+      });
+
+      if (error) {
+        console.error('Error invoking handle-buyer-github-callback:', error);
+        return { success: false, message: error.message || 'Failed to complete GitHub authentication.' };
       }
 
-      return { 
-        success: true, 
-        message: 'Dispute submitted successfully. Our team will review your case within 2-3 business days.' 
+      return {
+        success: true,
+        message: 'GitHub authentication successful!',
+        github_username: data?.github_username,
+        mvp_id: data?.mvp_id,
+        deployment_id: data?.deployment_id,
       };
     } catch (error: any) {
-      console.error('Error in submitDispute:', error);
-      return { 
-        success: false, 
-        message: error.message || 'Failed to submit dispute. Please try again.' 
+      console.error('Error in completeGitHubAuth:', error);
+      return { success: false, message: error.message || 'An unexpected error occurred during GitHub authentication.' };
+    }
+  }
+
+  static async createRepoAndPushMVP(userId: string, mvpId: string, deploymentId: string, repoName: string): Promise<{ success: boolean; message: string; github_repo_url?: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-buyer-repo-and-push-mvp', {
+        body: {
+          user_id: userId,
+          mvp_id: mvpId,
+          deployment_id: deploymentId,
+          repo_name: repoName,
+        },
+      });
+
+      if (error) {
+        console.error('Error invoking create-buyer-repo-and-push-mvp:', error);
+        return { success: false, message: error.message || 'Failed to create repository and push MVP.' };
+      }
+
+      return {
+        success: true,
+        message: 'GitHub repository created and MVP code pushed!',
+        github_repo_url: data?.github_repo_url,
       };
+    } catch (error: any) {
+      console.error('Error in createRepoAndPushMVP:', error);
+      return { success: false, message: error.message || 'An unexpected error occurred during repository creation.' };
+    }
+  }
+
+  static async initiateNetlifyAuth(userId: string, deploymentId: string, githubRepoUrl: string): Promise<{ success: boolean; message: string; netlify_auth_url?: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('initiate-netlify-oauth', {
+        body: {
+          user_id: userId,
+          deployment_id: deploymentId,
+          github_repo_url: githubRepoUrl,
+        },
+      });
+
+      if (error) {
+        console.error('Error invoking initiate-netlify-oauth:', error);
+        return { success: false, message: error.message || 'Failed to initiate Netlify authentication.' };
+      }
+
+      return {
+        success: true,
+        message: 'Redirecting to Netlify for authentication...',
+        netlify_auth_url: data?.netlify_auth_url,
+      };
+    } catch (error: any) {
+      console.error('Error in initiateNetlifyAuth:', error);
+      return { success: false, message: error.message || 'An unexpected error occurred during Netlify authentication.' };
+    }
+  }
+
+  static async completeNetlifyAuth(code: string, state: string): Promise<{ success: boolean; message: string; netlify_site_url?: string; deployment_id?: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('handle-netlify-callback', {
+        body: { code, state },
+      });
+
+      if (error) {
+        console.error('Error invoking handle-netlify-callback:', error);
+        return { success: false, message: error.message || 'Failed to complete Netlify authentication.' };
+      }
+
+      return {
+        success: true,
+        message: 'Netlify site deployed successfully!',
+        netlify_site_url: data?.site_url,
+        deployment_id: data?.deployment_id,
+      };
+    } catch (error: any) {
+      console.error('Error in completeNetlifyAuth:', error);
+      return { success: false, message: error.message || 'An unexpected error occurred during Netlify deployment.' };
+    }
+  }
+
+  static async getDeploymentStatus(deploymentId: string): Promise<{ status: string; netlify_site_url?: string; error_message?: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('get-deployment-status', {
+        body: { id: deploymentId },
+      });
+
+      if (error) {
+        console.error('Error invoking get-deployment-status:', error);
+        return { status: 'failed', error_message: error.message || 'Failed to fetch deployment status.' };
+      }
+
+      return {
+        status: data?.status || 'unknown',
+        netlify_site_url: data?.netlify_site_url,
+        error_message: data?.error_message,
+      };
+    } catch (error: any) {
+      console.error('Error in getDeploymentStatus:', error);
+      return { status: 'failed', error_message: error.message || 'An unexpected error occurred while fetching deployment status.' };
+    }
+  }
+
+  static async getUserDeployments(userId: string): Promise<{ success: boolean; deployments?: any[]; message?: string }> {
+    // Simulate API call to Supabase
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    try {
+      const { data, error } = await supabase
+        .from('deployments')
+        .select(`
+          *,
+          mvps(title, preview_images)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching user deployments:', error);
+        return { success: false, message: error.message || 'Failed to fetch user deployments.' };
+      }
+
+      return { success: true, deployments: data || [] };
+    } catch (error: any) {
+      console.error('Error in getUserDeployments:', error);
+      return { success: false, message: error.message || 'An unexpected error occurred while fetching user deployments.' };
+    }
+  }
+
+  static async initiateGeneralGitHubAuth(userId: string): Promise<{ success: boolean; message: string; github_auth_url?: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('initiate-github-oauth', {
+        body: { user_id: userId },
+      });
+
+      if (error) {
+        console.error('Error invoking initiate-github-oauth:', error);
+        return { success: false, message: error.message || 'Failed to initiate GitHub authentication.' };
+      }
+
+      return {
+        success: true,
+        message: 'Redirecting to GitHub for authentication...',
+        github_auth_url: data?.github_auth_url,
+      };
+    } catch (error: any) {
+      console.error('Error in initiateGeneralGitHubAuth:', error);
+      return { success: false, message: error.message || 'An unexpected error occurred during GitHub authentication.' };
     }
   }
 }
 
-/**
- * Service for handling marketing functions
- */
 export class MarketingService {
-  /**
-   * Process a lead capture from the modal
-   * @param email The email address
-   * @param agreedToTerms Whether they agreed to the privacy terms
-   */
   static async processLeadCapture(email: string, agreedToTerms: boolean): Promise<{ success: boolean; message: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     try {
-      if (!email) {
-        return { success: false, message: 'Email is required' };
-      }
-      
-      if (!agreedToTerms) {
-        return { success: false, message: 'You must agree to the privacy policy' };
-      }
-      
-      // Call the Edge Function to process the lead
       const { data, error } = await supabase.functions.invoke('process-lead-capture', {
-        body: {
-          email,
-          source: 'lead_modal',
-          agreed_to_terms: agreedToTerms,
-          timestamp: new Date().toISOString()
-        }
+        body: { email, agreed_to_terms: agreedToTerms, source: 'lead_modal' },
       });
-      
+
       if (error) {
-        console.error('Error invoking process-lead-capture function:', error);
-        return { success: false, message: 'Failed to process subscription. Please try again.' };
+        console.error('Error invoking process-lead-capture:', error);
+        return { success: false, message: error.message || 'Failed to process lead capture.' };
       }
-      
-      if (data?.success) {
-        return { success: true, message: 'Thank you! You\'ve been subscribed to our newsletter.' };
-      } else {
-        return { success: false, message: data?.error || 'Failed to subscribe. Please try again.' };
-      }
+
+      return {
+        success: true,
+        message: data?.message || 'Thank you for subscribing! Check your inbox for updates.',
+      };
     } catch (error: any) {
       console.error('Error in processLeadCapture:', error);
-      return { success: false, message: error.message || 'An unexpected error occurred' };
+      return { success: false, message: error.message || 'An unexpected error occurred during lead capture.' };
+    }
+  }
+}
+
+export class NewsletterService {
+  static async getAllNewsletterTypes(): Promise<NewsletterType[]> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return MOCK_NEWSLETTER_TYPES;
+  }
+
+  static async createNewsletterType(newsletterType: Omit<NewsletterType, 'id' | 'created_at'>): Promise<{ success: boolean; message: string; newsletterType?: NewsletterType }> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const newType: NewsletterType = {
+      id: uuidv4(),
+      created_at: new Date().toISOString(),
+      ...newsletterType,
+    };
+    MOCK_NEWSLETTER_TYPES.push(newType);
+    return { success: true, message: 'Newsletter type created successfully', newsletterType: newType };
+  }
+
+  static async updateNewsletterType(id: string, updates: Partial<Omit<NewsletterType, 'id' | 'created_at'>>): Promise<{ success: boolean; message: string }> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const index = MOCK_NEWSLETTER_TYPES.findIndex(type => type.id === id);
+    if (index !== -1) {
+      MOCK_NEWSLETTER_TYPES[index] = { ...MOCK_NEWSLETTER_TYPES[index], ...updates };
+      return { success: true, message: 'Newsletter type updated successfully' };
+    }
+    return { success: false, message: 'Newsletter type not found' };
+  }
+
+  static async deleteNewsletterType(id: string): Promise<{ success: boolean; message: string }> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const initialLength = MOCK_NEWSLETTER_TYPES.length;
+    MOCK_NEWSLETTER_TYPES.splice(MOCK_NEWSLETTER_TYPES.findIndex(type => type.id === id), 1);
+    if (MOCK_NEWSLETTER_TYPES.length < initialLength) {
+      return { success: true, message: 'Newsletter type deleted successfully' };
+    }
+    return { success: false, message: 'Newsletter type not found' };
+  }
+
+  static async getAllUserSubscriptions(): Promise<UserNewsletterSubscription[]> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return MOCK_USER_NEWSLETTER_SUBSCRIPTIONS;
+  }
+
+  static async getUserSubscriptions(userId: string): Promise<UserNewsletterSubscription[]> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return MOCK_USER_NEWSLETTER_SUBSCRIPTIONS.filter(sub => sub.user_id === userId);
+  }
+
+  static async subscribeToNewsletter(userId: string, newsletterTypeId: string, email: string, source?: string): Promise<{ success: boolean; message: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const { data, error } = await supabase.functions.invoke('subscribe-to-newsletter', {
+        body: { user_id: userId, newsletter_type_id: newsletterTypeId, email, source },
+      });
+      if (error) throw error;
+      return { success: true, message: data.message };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Failed to subscribe.' };
+    }
+  }
+
+  static async unsubscribeFromNewsletter(userId: string, newsletterTypeId: string, email: string): Promise<{ success: boolean; message: string }> {
+    // Simulate API call to Edge Function
+    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const { data, error } = await supabase.functions.invoke('unsubscribe-from-newsletter', {
+        body: { user_id: userId, newsletter_type_id: newsletterTypeId, email },
+      });
+      if (error) throw error;
+      return { success: true, message: data.message };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Failed to unsubscribe.' };
+    }
+  }
+
+  static async getAllNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return MOCK_NEWSLETTER_SUBSCRIBERS;
+  }
+
+  static async exportSubscribersList(format: 'csv' | 'json'): Promise<string> {
+    // Simulate export logic
+    await new Promise(resolve => setTimeout(resolve, 500));
+    if (format === 'json') {
+      return JSON.stringify(MOCK_NEWSLETTER_SUBSCRIBERS, null, 2);
+    } else {
+      const headers = 'id,email,source,agreed_to_terms,subscribed_at,last_modified_at,unsubscribed_at,categories\n';
+      const rows = MOCK_NEWSLETTER_SUBSCRIBERS.map(sub =>
+        `${sub.id},${sub.email},${sub.source || ''},${sub.agreed_to_terms},${sub.subscribed_at},${sub.last_modified_at},${sub.unsubscribed_at || ''},"${sub.categories?.join('|') || ''}"`
+      ).join('\n');
+      return headers + rows;
     }
   }
 }
