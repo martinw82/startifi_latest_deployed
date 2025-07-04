@@ -17,7 +17,8 @@ import {
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
-import { DeploymentService } from '../lib/api';
+import { DeploymentService } from '../lib/deployment'; // Updated import
+
 import type { Deployment } from '../types';
 
 export const DeploymentsPage: React.FC = () => {
