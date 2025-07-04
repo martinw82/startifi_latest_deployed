@@ -1,7 +1,7 @@
 // src/pages/MVPDetailPage.tsx
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { APIService, DeploymentService, NotificationService } from '../lib/api';
+import { APIService, NotificationService } from '../lib/api';
 import { DeploymentService } from '../lib/deployment'; // Updated import
 import type { MVP, Review } from '../types';
 import { useAuth } from '../hooks/useAuth';
