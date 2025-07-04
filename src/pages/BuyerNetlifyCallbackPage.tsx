@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
-import { DeploymentService } from '../lib/api';
+import { DeploymentService } from '../lib/deployment'; // Updated import
+
 
 export const BuyerNetlifyCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
