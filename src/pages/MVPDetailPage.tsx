@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { APIService, DeploymentService, NotificationService } from '../lib/api';
+import { DeploymentService } from '../lib/deployment'; // Updated import
 import type { MVP, Review } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { Loader2, AlertTriangle, ExternalLink, Github, Download, Globe, Code } from 'lucide-react';
