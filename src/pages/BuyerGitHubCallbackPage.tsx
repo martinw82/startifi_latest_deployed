@@ -5,7 +5,6 @@ import { Loader2, CheckCircle, AlertCircle, Github } from 'lucide-react';
 import { DeploymentService } from '../lib/deployment'; // Updated import
 import { GlassCard } from '../components/ui/GlassCard';
 import { GlossyButton } from '../components/ui/GlossyButton';
-import { DeploymentService } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 
