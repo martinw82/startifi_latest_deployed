@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Mail, Loader2, AlertCircle, CheckCircle, Github, Code, Link2, Globe, FileText, Camera, Lock, Eye, EyeOff, Bell } from 'lucide-react'; // Added Bell
 import { GlassCard } from '../components/ui/GlassCard';
+import { DeploymentService } from '../lib/deployment'; // Updated import
+
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
 import { AuthService } from '../lib/auth';
