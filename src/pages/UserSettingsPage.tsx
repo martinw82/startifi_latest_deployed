@@ -8,7 +8,7 @@ import { DeploymentService } from '../lib/deployment'; // Updated import
 import { GlossyButton } from '../components/ui/GlossyButton';
 import { useAuth } from '../hooks/useAuth';
 import { AuthService } from '../lib/auth';
-import { DeploymentService, MarketingService } from '../lib/api'; // Added MarketingService
+import { MarketingService } from '../lib/api'; // Added MarketingService
 import { supabase } from '../lib/supabase';
 import { NewsletterService } from '../lib/newsletterService'; // Added NewsletterService
 
