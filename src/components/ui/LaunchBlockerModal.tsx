@@ -156,7 +156,7 @@ export const LaunchBlockerModal: React.FC<LaunchBlockerModalProps> = ({
 
           <div className="flex items-center justify-center text-gray-500 text-sm">
             <Clock className="w-4 h-4 mr-2" />
-            <span>Countdown to a new era of MVP development.</span>
+            <span>Countdown to a new era of Business Startup development.</span>
           </div>
         </GlassCard>
       </motion.div>
