@@ -31,17 +31,18 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Add deployment_id to destructuring
-    const { user_id, mvp_id, deployment_id } = await req.json();
+    // Add deployment_id and repo_name to destructuring
+    const { user_id, mvp_id, deployment_id, repo_name } = await req.json();
 
     // Log received parameters
     console.log('initiate-buyer-github-oauth: Received user_id:', user_id);
     console.log('initiate-buyer-github-oauth: Received mvp_id:', mvp_id);
-    console.log('initiate-buyer-github-oauth: Received deployment_id:', deployment_id); // Log new parameter
+    console.log('initiate-buyer-github-oauth: Received deployment_id:', deployment_id);
+    console.log('initiate-buyer-github-oauth: Received repo_name:', repo_name);
 
-    if (!user_id || !deployment_id) { // Ensure deployment_id is also checked
+    if (!user_id || !deployment_id || !repo_name) { // Ensure repo_name is also checked
       return new Response(
-        JSON.stringify({ error: 'Missing required field: user_id, deployment_id' }),
+        JSON.stringify({ error: 'Missing required field: user_id, deployment_id, repo_name' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -99,12 +100,13 @@ Deno.serve(async (req) => {
     const state = v4();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // State valid for 5 minutes
 
-    // Store the state, user_id, mvp_id, and deployment_id in the database
-    const stateData: { user_id: string; state: string; expires_at: string; mvp_id?: string; deployment_id?: string } = { // Update type definition
+    // Store the state, user_id, mvp_id, deployment_id, and repo_name in the database
+    const stateData: { user_id: string; state: string; expires_at: string; mvp_id?: string; deployment_id?: string; repo_name?: string } = {
       user_id: user_id,
       state: state,
       expires_at: expiresAt,
-      deployment_id: deployment_id, // Include deployment_id
+      deployment_id: deployment_id,
+      repo_name: repo_name, // Include repo_name
     };
     
     if (mvp_id) {
