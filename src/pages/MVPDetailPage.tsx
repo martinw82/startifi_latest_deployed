@@ -595,3 +595,4 @@ export const MVPDetailPage: React.FC = () => {
     </div>
   );
 };
+
