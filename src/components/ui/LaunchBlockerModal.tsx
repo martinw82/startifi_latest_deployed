@@ -1,3 +1,4 @@
+// src/components/ui/LaunchBlockerModal.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Rocket } from 'lucide-react';
@@ -18,11 +19,22 @@ export const LaunchBlockerModal: React.FC<LaunchBlockerModalProps> = ({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Define paths where the blocker should be automatically overridden
+    const redirectPaths = [
+      '/github-app-callback',
+      '/buyer-github-callback',
+      '/buyer-netlify-callback',
+    ];
+
+    // Check if the current path is one of the redirect paths
+    const currentPath = window.location.pathname;
+    const isRedirectPath = redirectPaths.some(path => currentPath.startsWith(path));
+
     // Check for override query parameter
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get(overrideQueryParam) === 'true') {
+    if (urlParams.get(overrideQueryParam) === 'true' || isRedirectPath) {
       setIsOverridden(true);
-      return; // Do not show modal if overridden
+      return; // Do not show modal if overridden by query param or redirect path
     }
 
     let launchCountdownStartTime: number;
