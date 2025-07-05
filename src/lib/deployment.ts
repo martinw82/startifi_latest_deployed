@@ -43,6 +43,7 @@ export class DeploymentService {
         body: {
           user_id: userId,
           mvp_id: mvpId,
+          repo_name: repoName,
           deployment_id: deploymentId, // Pass the newly created deployment ID
         },
       });
