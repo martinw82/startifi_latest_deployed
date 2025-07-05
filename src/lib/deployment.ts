@@ -296,8 +296,8 @@ export class DeploymentService {
     } catch (error: any) {
       console.error('Error in getDeploymentStatus:', error);
       return {
-        status: 'failed',
-        error_message: error.message || 'Failed to retrieve deployment status.',
+        success: false,
+        message: error.message || 'Failed to retrieve deployment status.',
       };
     }
   }
