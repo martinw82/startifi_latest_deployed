@@ -43,8 +43,8 @@ export class DeploymentService {
         body: {
           user_id: userId,
           mvp_id: mvpId,
-          repo_name: repoName,
           deployment_id: deploymentId, // Pass the newly created deployment ID
+          repo_name: repoName,
         },
       });
 
@@ -297,8 +297,8 @@ export class DeploymentService {
     } catch (error: any) {
       console.error('Error in getDeploymentStatus:', error);
       return {
-        success: false,
-        message: error.message || 'Failed to retrieve deployment status.',
+        status: 'failed',
+        error_message: error.message || 'Failed to retrieve deployment status.',
       };
     }
   }
