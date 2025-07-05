@@ -464,7 +464,7 @@ export const MVPDetailPage: React.FC = () => {
                       });
                     } catch (notificationError) {
                       console.error('Error creating notification:', notificationError);
-                      // Don't fail the download if notification creation fails
+                      // Don't fail the action if notification creation fails
                     }
                     
                     setDownloadMessage(
@@ -595,4 +595,3 @@ export const MVPDetailPage: React.FC = () => {
     </div>
   );
 };
-
