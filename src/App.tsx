@@ -30,6 +30,7 @@ import { LeadCaptureModal } from './components/marketing/LeadCaptureModal'; // I
 import { DisputeDetailPage } from './pages/DisputeDetailPage'; // Import DisputeDetailPage
 import { AuthContext, useAuthProvider } from './hooks/useAuth';
 import { MarketingService } from './lib/api'; // Import MarketingService
+import { LaunchBlockerModal } from './components/ui/LaunchBlockerModal'; // Import LaunchBlockerModal
 
 const AppContent: React.FC = () => {
   // State for managing the lead capture modal
@@ -179,6 +180,12 @@ const AppContent: React.FC = () => {
         onClose={handleCloseModal}
         onSubmit={handleSubmitLead}
       />
+
+      {/* Launch Blocker Modal */}
+      <LaunchBlockerModal
+        launchDurationHours={72} // Set to 72 or 96 hours as desired
+        overrideQueryParam="override_launch_blocker"
+      />
       
       <Footer />
     </div>
@@ -198,3 +205,4 @@ function App() {
 }
 
 export default App;
+
