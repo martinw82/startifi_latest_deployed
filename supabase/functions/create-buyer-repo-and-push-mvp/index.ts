@@ -1,4 +1,4 @@
-// supabase/functions/handle-buyer-github-callback/index.ts
+// supabase/functions/create-buyer-repo-and-push-mvp/index.ts
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
@@ -30,11 +30,20 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { code, state } = await req.json();
+    const { user_id, mvp_id, deployment_id, repo_name } = await req.json();
 
-    if (!code || !state) {
+    console.log('create-buyer-repo-and-push-mvp: Received parameters:', { user_id, mvp_id, deployment_id, repo_name });
+
+    if (!user_id || !mvp_id || !deployment_id || !repo_name) {
+      const missingFields = [];
+      if (!user_id) missingFields.push('user_id');
+      if (!mvp_id) missingFields.push('mvp_id');
+      if (!deployment_id) missingFields.push('deployment_id');
+      if (!repo_name) missingFields.push('repo_name');
+      
+      console.error('create-buyer-repo-and-push-mvp: Missing required fields:', missingFields.join(', '));
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters: code, state' }),
+        JSON.stringify({ error: `Missing required fields: ${missingFields.join(', ')}` }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -42,236 +51,115 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify the state parameter to prevent CSRF attacks
-    const { data: stateData, error: stateError } = await supabase
-      .from('github_oauth_states')
-      // Include deployment_id in the select statement
-      .select('user_id, mvp_id, deployment_id, expires_at')
-      .eq('state', state)
-      .single();
+    // Update deployment status to 'creating_repo'
+    await updateDeploymentStatus(supabase, deployment_id, 'creating_repo', null);
 
-    if (stateError || !stateData) {
-      console.error('Invalid or expired state parameter:', stateError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired state parameter' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
-
-    // Check if the state has expired
-    if (new Date(stateData.expires_at) < new Date()) {
-      return new Response(
-        JSON.stringify({ error: 'OAuth state has expired. Please try again.' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
-
-    // Destructure deployment_id from stateData
-    const { user_id, mvp_id, deployment_id } = stateData;
-
-    // Exchange the code for an access token
-    const githubClientId = Deno.env.get('BUYER_GITHUB_CLIENT_ID');
-    const githubClientSecret = Deno.env.get('BUYER_GITHUB_CLIENT_SECRET');
-
-    if (!githubClientId || !githubClientSecret) {
-      return new Response(
-        JSON.stringify({ error: 'GitHub App configuration error' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
-      );
-    }
-
-    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: githubClientId,
-        client_secret: githubClientSecret,
-        code: code,
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('Failed to exchange code for token:', errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to authenticate with GitHub' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: tokenResponse.status,
-        }
-      );
-    }
-
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-    const refreshToken = tokenData.refresh_token;
-    const expiresIn = tokenData.expires_in;
-
-    if (!accessToken) {
-      return new Response(
-        JSON.stringify({ error: 'No access token received from GitHub' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
-      );
-    }
-
-    // Calculate token expiration date (if provided)
-    let expiresAt = null;
-    if (expiresIn) {
-      expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
-    }
-
-    // Get GitHub user info to store username
-    const userResponse = await fetch('https://api.github.com/user', {
-      headers: {
-        'Authorization': `token ${accessToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    });
-
-    if (!userResponse.ok) {
-      console.error('Failed to fetch GitHub user data:', await userResponse.text());
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch GitHub user data' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
-      );
-    }
-
-    const userData = await userResponse.json();
-    const githubUsername = userData.login;
-
-    // Store the tokens and username securely
-    // First, check if a token for this user and provider already exists
-    const { data: existingToken, error: checkError } = await supabase
+    // 1. Fetch the user's GitHub access token
+    const { data: tokenData, error: tokenError } = await supabase
       .from('user_oauth_tokens')
-      .select('id')
+      .select('access_token')
       .eq('user_id', user_id)
       .eq('provider', 'github')
       .maybeSingle();
 
-    if (checkError) {
-      console.error('Error checking for existing token:', checkError);
+    if (tokenError || !tokenData?.access_token) {
+      console.error('create-buyer-repo-and-push-mvp: GitHub token not found for user:', tokenError);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'GitHub token not found for user.');
       return new Response(
-        JSON.stringify({ error: 'Failed to check for existing token' }),
+        JSON.stringify({ error: 'GitHub token not found for user. Please connect your GitHub account in settings.' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
+          status: 400,
         }
       );
     }
 
-    let tokenError;
-    if (existingToken) {
-      // Update existing token
-      const { error } = await supabase
-        .from('user_oauth_tokens')
-        .update({
-          access_token: accessToken,
-          refresh_token: refreshToken || null,
-          expires_at: expiresAt,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingToken.id);
-      
-      tokenError = error;
-    } else {
-      // Insert new token
-      const { error } = await supabase
-        .from('user_oauth_tokens')
-        .insert({
-          user_id: user_id,
-          provider: 'github',
-          access_token: accessToken,
-          refresh_token: refreshToken || null,
-          expires_at: expiresAt,
-        });
-      
-      tokenError = error;
-    }
+    const githubAccessToken = tokenData.access_token;
 
-    if (tokenError) {
-      console.error('Error storing OAuth token:', tokenError);
+    // 2. Create a new GitHub repository
+    console.log(`create-buyer-repo-and-push-mvp: Creating GitHub repository "${repo_name}" for user ${user_id}...`);
+    const createRepoResponse = await fetch('https://api.github.com/user/repos', {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${githubAccessToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: repo_name,
+        private: true, // Or false, depending on your policy
+        auto_init: false, // We will push content later
+      }),
+    });
+
+    if (!createRepoResponse.ok) {
+      const errorText = await createRepoResponse.text();
+      console.error('create-buyer-repo-and-push-mvp: Failed to create GitHub repository:', errorText);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', `Failed to create GitHub repository: ${errorText}`);
       return new Response(
-        JSON.stringify({ error: 'Failed to store GitHub authentication' }),
+        JSON.stringify({ error: `Failed to create GitHub repository: ${errorText}` }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
+          status: createRepoResponse.status,
         }
       );
     }
 
-    // Update user profile with GitHub username
-    const { error: profileError } = await supabase
-      .from('profiles')
+    const repoData = await createRepoResponse.json();
+    const githubRepoUrl = repoData.html_url;
+    const repoOwner = repoData.owner.login; // Get the actual owner (user's GitHub username)
+
+    console.log(`create-buyer-repo-and-push-mvp: GitHub repository created: ${githubRepoUrl}`);
+
+    // 3. Update the deployment record with the new GitHub repository URL and owner
+    const { error: updateDeploymentError } = await supabase
+      .from('deployments')
       .update({
-        github_username: githubUsername,
+        github_repo_url: githubRepoUrl,
+        repo_owner: repoOwner,
+        repo_name: repo_name,
+        status: 'repo_created', // New status
         updated_at: new Date().toISOString(),
       })
-      .eq('id', user_id);
+      .eq('id', deployment_id);
 
-    if (profileError) {
-      console.error('Error updating user profile with GitHub username:', profileError);
-      // Non-critical error, continue anyway
-    }
-
-    // Clean up the used state
-    await supabase
-      .from('github_oauth_states')
-      .delete()
-      .eq('state', state);
-
-    // If deployment_id is present, invoke the next step in the deployment flow
-    if (deployment_id) {
-      console.log(`Invoking create-buyer-repo-and-push-mvp for deployment_id: ${deployment_id}`);
-      const { data: repoPushData, error: repoPushError } = await supabase.functions.invoke(
-        'create-buyer-repo-and-push-mvp',
+    if (updateDeploymentError) {
+      console.error('create-buyer-repo-and-push-mvp: Error updating deployment record:', updateDeploymentError);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to update deployment record with GitHub repo details.');
+      return new Response(
+        JSON.stringify({ error: 'Failed to update deployment record with GitHub repository details' }),
         {
-          body: {
-            user_id: user_id,
-            mvp_id: mvp_id,
-            deployment_id: deployment_id, // Pass deployment_id
-            repo_name: `mvp-${mvp_id?.substring(0, 8) || 'project'}-${Math.random().toString(36).substring(2, 6)}`, // Generate a default repo name
-          },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
         }
       );
-
-      if (repoPushError) {
-        console.error('Error invoking create-buyer-repo-and-push-mvp:', repoPushError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to create GitHub repository and push MVP' }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500,
-          }
-        );
-      }
-      console.log('create-buyer-repo-and-push-mvp invoked successfully:', repoPushData);
     }
 
-    // Return success with relevant information
+    // 4. Trigger the external worker to push the MVP files to the new repository
+    console.log(`create-buyer-repo-and-push-mvp: Triggering external worker for deployment ${deployment_id}...`);
+    const { data: workerTriggerData, error: workerTriggerError } = await supabase.functions.invoke('trigger-deployment-worker', {
+      body: { deployment_id: deployment_id },
+    });
+
+    if (workerTriggerError) {
+      console.error('create-buyer-repo-and-push-mvp: Error triggering deployment worker:', workerTriggerError);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', `Failed to trigger deployment worker: ${workerTriggerError.message}`);
+      return new Response(
+        JSON.stringify({ error: `Failed to trigger deployment worker: ${workerTriggerError.message}` }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+
+    console.log('create-buyer-repo-and-push-mvp: Deployment worker triggered successfully:', workerTriggerData);
+
     return new Response(
       JSON.stringify({
         success: true,
-        github_username: githubUsername,
-        mvp_id: mvp_id || null,
-        deployment_id: deployment_id || null, // Return deployment_id
+        message: 'GitHub repository created and worker triggered successfully.',
+        github_repo_url: githubRepoUrl,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -280,7 +168,8 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Error in handle-buyer-github-callback function:', error);
+    console.error('create-buyer-repo-and-push-mvp: An unexpected error occurred in the function:', error);
+    await updateDeploymentStatus(supabase, deployment_id, 'failed', error.message || 'An unexpected error occurred during repository creation.');
     return new Response(
       JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
       {
@@ -290,3 +179,29 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+// Helper function to update deployment status
+async function updateDeploymentStatus(supabase: any, deploymentId: string, status: string, errorMessage: string | null) {
+  const updateData: Record<string, any> = {
+    status,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (errorMessage) {
+    updateData.error_message = errorMessage;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('deployments')
+      .update(updateData)
+      .eq('id', deploymentId);
+    if (error) {
+      console.error(`Failed to update deployment ${deploymentId} status to ${status}:`, error);
+    } else {
+      console.log(`Deployment ${deploymentId} status updated to: ${status}`);
+    }
+  } catch (e) {
+    console.error(`Catastrophic error during Supabase status update for ${deploymentId}:`, e);
+  }
+}
