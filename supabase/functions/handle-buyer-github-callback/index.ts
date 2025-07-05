@@ -1,3 +1,4 @@
+// supabase/functions/handle-buyer-github-callback/index.ts
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
@@ -44,7 +45,7 @@ Deno.serve(async (req) => {
     // Verify the state parameter to prevent CSRF attacks
     const { data: stateData, error: stateError } = await supabase
       .from('github_oauth_states')
-      .select('user_id, mvp_id, expires_at')
+      .select('user_id, mvp_id, deployment_id, repo_name, expires_at') // Include repo_name here
       .eq('state', state)
       .single();
 
@@ -70,7 +71,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { user_id, mvp_id } = stateData;
+    const { user_id, mvp_id, deployment_id, repo_name } = stateData; // Destructure repo_name
 
     // Exchange the code for an access token
     const githubClientId = Deno.env.get('BUYER_GITHUB_CLIENT_ID');
@@ -234,12 +235,41 @@ Deno.serve(async (req) => {
       .delete()
       .eq('state', state);
 
+    // If deployment_id is present, invoke the next step in the deployment flow
+    if (deployment_id) {
+      console.log(`Invoking create-buyer-repo-and-push-mvp for deployment_id: ${deployment_id}`);
+      const { data: repoPushData, error: repoPushError } = await supabase.functions.invoke(
+        'create-buyer-repo-and-push-mvp',
+        {
+          body: {
+            user_id: user_id,
+            mvp_id: mvp_id,
+            deployment_id: deployment_id,
+            repo_name: repo_name, // Pass the repo_name here
+          },
+        }
+      );
+
+      if (repoPushError) {
+        console.error('Error invoking create-buyer-repo-and-push-mvp:', repoPushError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create GitHub repository and push MVP' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+          }
+        );
+      }
+      console.log('create-buyer-repo-and-push-mvp invoked successfully:', repoPushData);
+    }
+
     // Return success with relevant information
     return new Response(
       JSON.stringify({
         success: true,
         github_username: githubUsername,
         mvp_id: mvp_id || null,
+        deployment_id: deployment_id || null,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
