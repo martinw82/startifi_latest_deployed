@@ -112,12 +112,10 @@ Deno.serve(async (req) => {
 
     console.log(`create-buyer-repo-and-push-mvp: GitHub repository created: ${githubRepoUrl}`);
 
-    // --- START MODIFICATION ---
-
     // Fetch MVP details to determine storage_path
     const { data: mvpDetails, error: mvpError } = await supabase
       .from('mvps')
-      .select('slug, version_number, last_synced_github_commit_sha, previous_ipfs_hash')
+      .select('slug, version_number, last_synced_github_commit_sha, previous_ipfs_hash, original_file_name') // Added original_file_name
       .eq('id', mvp_id)
       .single();
 
@@ -172,8 +170,6 @@ Deno.serve(async (req) => {
         }
       );
     }
-
-    // --- END MODIFICATION ---
 
     // 4. Trigger the external worker to push the MVP files to the new repository
     console.log(`create-buyer-repo-and-push-mvp: Triggering external worker for deployment ${deployment_id}...`);
@@ -250,7 +246,7 @@ async function updateDeploymentStatus(supabase: any, deploymentId: string, statu
 }
 
 // Helper function to determine the MVP storage path (replicated from frontend)
-function getMvpStoragePath(mvp: { slug: string; version_number: string; last_synced_github_commit_sha?: string | null; previous_ipfs_hash?: string | null }): string | null {
+function getMvpStoragePath(mvp: { slug: string; version_number: string; last_synced_github_commit_sha?: string | null; previous_ipfs_hash?: string | null; original_file_name?: string | null }): string | null {
   const slug = mvp.slug;
   // Prioritize GitHub-synced path if last_synced_github_commit_sha is present
   if (mvp.last_synced_github_commit_sha) {
@@ -262,8 +258,8 @@ function getMvpStoragePath(mvp: { slug: string; version_number: string; last_syn
   // If a manual version 1.0.0 was uploaded after a GitHub sync, this might be incorrect.
   // However, given the current upload logic, this should hold.
   if (mvp.version_number === '1.0.0' && !mvp.previous_ipfs_hash) {
-    return `mvps/${slug}/source`;
+    return `mvps/${slug}/${mvp.original_file_name}`; // Use original_file_name
   }
   // For subsequent manual version uploads
-  return `mvps/${slug}/versions/${mvp.version_number}/source`;
+  return `mvps/${slug}/versions/${mvp.version_number}/${mvp.original_file_name}`; // Use original_file_name
 }
