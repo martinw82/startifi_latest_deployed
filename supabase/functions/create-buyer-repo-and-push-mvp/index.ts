@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
       if (!repo_name) missingFields.push('repo_name');
       
       console.error('create-buyer-repo-and-push-mvp: Missing required fields:', missingFields.join(', '));
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', `Missing required fields: ${missingFields.join(', ')}`);
       return new Response(
         JSON.stringify({ error: `Missing required fields: ${missingFields.join(', ')}` }),
         {
@@ -111,13 +112,50 @@ Deno.serve(async (req) => {
 
     console.log(`create-buyer-repo-and-push-mvp: GitHub repository created: ${githubRepoUrl}`);
 
-    // 3. Update the deployment record with the new GitHub repository URL and owner
+    // --- START MODIFICATION ---
+
+    // Fetch MVP details to determine storage_path
+    const { data: mvpDetails, error: mvpError } = await supabase
+      .from('mvps')
+      .select('slug, version_number, last_synced_github_commit_sha, previous_ipfs_hash')
+      .eq('id', mvp_id)
+      .single();
+
+    if (mvpError || !mvpDetails) {
+      console.error('create-buyer-repo-and-push-mvp: Error fetching MVP details:', mvpError);
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to fetch MVP details for storage path.');
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch MVP details for storage path' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+
+    // Determine the storage path for the MVP file
+    const storagePath = getMvpStoragePath(mvpDetails);
+    if (!storagePath) {
+      console.error('create-buyer-repo-and-push-mvp: Could not determine storage path for MVP.');
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Could not determine storage path for MVP file.');
+      return new Response(
+        JSON.stringify({ error: 'Could not determine storage path for MVP file' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+    console.log(`create-buyer-repo-and-push-mvp: Determined storage path: ${storagePath}`);
+
+    // 3. Update the deployment record with the new GitHub repository URL, owner, and storage_path
     const { error: updateDeploymentError } = await supabase
       .from('deployments')
       .update({
         github_repo_url: githubRepoUrl,
         repo_owner: repoOwner,
         repo_name: repo_name,
+        storage_path: storagePath, // Set the storage_path here
         status: 'repo_created', // New status
         updated_at: new Date().toISOString(),
       })
@@ -125,15 +163,17 @@ Deno.serve(async (req) => {
 
     if (updateDeploymentError) {
       console.error('create-buyer-repo-and-push-mvp: Error updating deployment record:', updateDeploymentError);
-      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to update deployment record with GitHub repo details.');
+      await updateDeploymentStatus(supabase, deployment_id, 'failed', 'Failed to update deployment record with GitHub repo details and storage path.');
       return new Response(
-        JSON.stringify({ error: 'Failed to update deployment record with GitHub repository details' }),
+        JSON.stringify({ error: 'Failed to update deployment record with GitHub repository details and storage path' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500,
         }
       );
     }
+
+    // --- END MODIFICATION ---
 
     // 4. Trigger the external worker to push the MVP files to the new repository
     console.log(`create-buyer-repo-and-push-mvp: Triggering external worker for deployment ${deployment_id}...`);
@@ -169,7 +209,10 @@ Deno.serve(async (req) => {
 
   } catch (error: any) {
     console.error('create-buyer-repo-and-push-mvp: An unexpected error occurred in the function:', error);
-    await updateDeploymentStatus(supabase, deployment_id, 'failed', error.message || 'An unexpected error occurred during repository creation.');
+    // Ensure deployment_id is defined before attempting to update status
+    const requestBody = req.body ? await req.json().catch(() => ({})) : {};
+    const currentDeploymentId = requestBody.deployment_id || 'unknown';
+    await updateDeploymentStatus(supabase, currentDeploymentId, 'failed', error.message || 'An unexpected error occurred during repository creation.');
     return new Response(
       JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
       {
@@ -204,4 +247,23 @@ async function updateDeploymentStatus(supabase: any, deploymentId: string, statu
   } catch (e) {
     console.error(`Catastrophic error during Supabase status update for ${deploymentId}:`, e);
   }
+}
+
+// Helper function to determine the MVP storage path (replicated from frontend)
+function getMvpStoragePath(mvp: { slug: string; version_number: string; last_synced_github_commit_sha?: string | null; previous_ipfs_hash?: string | null }): string | null {
+  const slug = mvp.slug;
+  // Prioritize GitHub-synced path if last_synced_github_commit_sha is present
+  if (mvp.last_synced_github_commit_sha) {
+    // The webhook function adds .zip extension
+    return `mvps/${slug}/versions/github-${mvp.last_synced_github_commit_sha}/source.zip`;
+  }
+  // For initial manual uploads (version 1.0.0 and no previous IPFS hash)
+  // This heuristic assumes '1.0.0' is always the initial version and subsequent manual versions increment.
+  // If a manual version 1.0.0 was uploaded after a GitHub sync, this might be incorrect.
+  // However, given the current upload logic, this should hold.
+  if (mvp.version_number === '1.0.0' && !mvp.previous_ipfs_hash) {
+    return `mvps/${slug}/source`;
+  }
+  // For subsequent manual version uploads
+  return `mvps/${slug}/versions/${mvp.version_number}/source`;
 }
