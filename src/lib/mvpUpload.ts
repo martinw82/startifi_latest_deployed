@@ -50,7 +50,8 @@ export class MVPUploadService {
       const slug = this.generateSlug(data.title);
       
       // 2. Upload MVP file to storage
-      const mvpFileResult = await this.uploadFile(data.mvpFile, `mvps/${slug}/source`, 'mvp'); // Pass 'mvp' purpose
+      // Pass the original file name to the uploadFile helper
+      const mvpFileResult = await this.uploadFile(data.mvpFile, `mvps/${slug}`, 'mvp', data.mvpFile.name);
       if (!mvpFileResult.success) {
         throw new Error(mvpFileResult.error || 'Failed to upload MVP file'); // Use specific error
       }
@@ -60,8 +61,9 @@ export class MVPUploadService {
       for (let i = 0; i < data.previewImages.length; i++) {
         const imageResult = await this.uploadFile(
           data.previewImages[i], 
-          `mvps/${slug}/images/preview-${i + 1}`,
-          'image' // Pass 'image' purpose
+          `mvps/${slug}/images`,
+          'image', // Pass 'image' purpose
+          `preview-${i + 1}.${data.previewImages[i].name.split('.').pop()}` // Use original extension
         );
         if (imageResult.success && imageResult.url) {
           imageUrls.push(imageResult.url);
@@ -92,6 +94,7 @@ export class MVPUploadService {
         published_at: null,
         access_tier: data.access_tier,
         price: data.access_tier === 'one_time_sale' ? data.price : null, // Include price
+        original_file_name: data.mvpFile.name, // Store original file name
       };
 
       const { data: mvp, error } = await supabase
@@ -145,7 +148,8 @@ export class MVPUploadService {
       const slug = existingMVP.slug;
       
       // 4. Upload new MVP file to storage
-      const mvpFileResult = await this.uploadFile(data.mvpFile, `mvps/${slug}/versions/${data.versionNumber}/source`, 'mvp'); // Pass 'mvp' purpose
+      // Pass the original file name to the uploadFile helper
+      const mvpFileResult = await this.uploadFile(data.mvpFile, `mvps/${slug}/versions/${data.versionNumber}`, 'mvp', data.mvpFile.name);
       if (!mvpFileResult.success) {
         throw new Error(mvpFileResult.error || 'Failed to upload new MVP file'); // Use specific error
       }
@@ -155,8 +159,9 @@ export class MVPUploadService {
       for (let i = 0; i < data.previewImages.length; i++) {
         const imageResult = await this.uploadFile(
           data.previewImages[i], 
-          `mvps/${slug}/versions/${data.versionNumber}/images/preview-${i + 1}`,
-          'image' // Pass 'image' purpose
+          `mvps/${slug}/versions/${data.versionNumber}/images`,
+          'image', // Pass 'image' purpose
+          `preview-${i + 1}.${data.previewImages[i].name.split('.').pop()}` // Use original extension
         );
         if (imageResult.success && imageResult.url) {
           imageUrls.push(imageResult.url);
@@ -191,6 +196,7 @@ export class MVPUploadService {
         updated_at: new Date().toISOString(),
         access_tier: data.access_tier,
         price: data.access_tier === 'one_time_sale' ? data.price : null, // Include price
+        original_file_name: data.mvpFile.name, // Store original file name
       };
 
       const { error } = await supabase
@@ -247,8 +253,9 @@ export class MVPUploadService {
 
   private static async uploadFile(
     file: File, 
-    path: string,
-    filePurpose: 'mvp' | 'image' // New parameter
+    directoryPath: string, // Changed from 'path' to 'directoryPath'
+    filePurpose: 'mvp' | 'image',
+    originalFileName: string // New parameter for the original file name
   ): Promise<{ success: boolean; url?: string; path?: string; hash?: string; error?: string }> { // Added error to return type
     try {
       // Enhanced server-side validation
@@ -263,10 +270,13 @@ export class MVPUploadService {
       // Preview images go to public 'mvp-preview-images' bucket for display on the site
       const bucketName = filePurpose === 'image' ? 'mvp-preview-images' : 'mvp-files';
       
+      // Construct the full path including the original file name
+      const fullPath = `${directoryPath}/${originalFileName}`;
+
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from(bucketName)
-        .upload(path, file, {
+        .upload(fullPath, file, { // Use fullPath here
           cacheControl: '3600',
           upsert: true
         });
@@ -388,10 +398,10 @@ export class MVPUploadService {
     // If a manual version 1.0.0 was uploaded after a GitHub sync, this might be incorrect.
     // However, given the current upload logic, this should hold.
     if (mvp.version_number === '1.0.0' && !mvp.previous_ipfs_hash) {
-      return `mvps/${slug}/source`;
+      return `mvps/${slug}/${mvp.original_file_name}`; // Use original_file_name
     }
     // For subsequent manual version uploads
-    return `mvps/${slug}/versions/${mvp.version_number}/source`;
+    return `mvps/${slug}/versions/${mvp.version_number}/${mvp.original_file_name}`; // Use original_file_name
   }
 
   /**
@@ -633,12 +643,14 @@ export class MVPUploadService {
 
       // Handle MVP file upload if provided
       if (mvpFile) {
-        const mvpFileResult = await this.uploadFile(mvpFile, `mvps/${existingMVP.slug}/source`, 'mvp'); // Pass 'mvp' purpose
+        // Pass the original file name to the uploadFile helper
+        const mvpFileResult = await this.uploadFile(mvpFile, `mvps/${existingMVP.slug}`, 'mvp', mvpFile.name);
         if (!mvpFileResult.success) {
           throw new Error(mvpFileResult.error || 'Failed to upload new MVP file'); // Use specific error
         }
         finalUpdates.ipfs_hash = mvpFileResult.hash || 'pending';
         finalUpdates.file_size = mvpFile.size;
+        finalUpdates.original_file_name = mvpFile.name; // Store original file name
       }
 
       // Handle new preview images upload if provided
@@ -647,8 +659,9 @@ export class MVPUploadService {
         for (let i = 0; i < newPreviewImages.length; i++) {
           const imageResult = await this.uploadFile(
             newPreviewImages[i],
-            `mvps/${existingMVP.slug}/images/preview-${i + 1}`,
-            'image' // Pass 'image' purpose
+            `mvps/${existingMVP.slug}/images`,
+            'image', // Pass 'image' purpose
+            `preview-${i + 1}.${newPreviewImages[i].name.split('.').pop()}` // Use original extension
           );
           if (imageResult.success && imageResult.url) {
             imageUrls.push(imageResult.url);
@@ -768,10 +781,12 @@ export class MVPUploadService {
       const slug = existingMVP.slug;
       
       // Upload new file to storage
+      // For GitHub updates, the file is always a zip, so we can hardcode the name
       const mvpFileResult = await this.uploadFile(
         archiveFile, 
-        `mvps/${slug}/versions/github-${data.commitSha}/source`,
-        'mvp' // Pass 'mvp' purpose
+        `mvps/${slug}/versions/github-${data.commitSha}`,
+        'mvp', // Pass 'mvp' purpose
+        'source.zip' // Hardcode filename for GitHub archives
       );
       
       if (!mvpFileResult.success) {
@@ -800,7 +815,8 @@ export class MVPUploadService {
         version_history: updatedVersionHistory,
         last_synced_github_commit_sha: data.commitSha,
         status: 'pending_review',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        original_file_name: 'source.zip', // Set original_file_name for GitHub updates
       };
 
       const { error } = await supabase
