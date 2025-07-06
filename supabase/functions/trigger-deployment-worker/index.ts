@@ -182,11 +182,11 @@ Deno.serve(async (req) => {
     const workerData = await workerResponse.json();
     console.log('Railway worker response:', workerData);
 
-    // Update deployment status to processing
+    // Update deployment status to pushing_code
     await supabase
       .from('deployments')
       .update({
-        status: 'processing',
+        status: 'pushing_code', // Changed from 'processing' to 'pushing_code'
         updated_at: new Date().toISOString()
       })
       .eq('id', deployment_id);
