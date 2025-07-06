@@ -53,7 +53,8 @@ app.post("/deploy", async (req, res) => {
     return res.status(400).json({ error: "Deployment ID is required" });
   }
 
-  await updateDeploymentStatus(deployment_id, 'worker_started', null);
+  // MODIFICATION: Changed status from 'worker_started' to 'pushing_code'
+  await updateDeploymentStatus(deployment_id, 'pushing_code', null);
 
   // Fetch deployment metadata (includes storage_path, mvp_id, user_id, git_clone_url, repo_name, repo_owner)
   let deployment;
@@ -107,7 +108,7 @@ app.post("/deploy", async (req, res) => {
   const archivePath = path.join(tmpDir, archiveFileName);
   
   try {
-    await updateDeploymentStatus(deployment_id, 'worker_processing_files', null);
+    await updateDeploymentStatus(deployment_id, 'pushing_code', null); // Keep this status as it covers file processing and git operations
 
     // 1. Fetch GitHub token for the user
     const { data: tokenData, error: tokenError } = await supabase
@@ -252,8 +253,8 @@ app.post("/deploy", async (req, res) => {
       return res.status(500).json({ error: errMsg });
     }
 
-    await updateDeploymentStatus(deployment_id, 'code_pushed_awaiting_netlify_setup', null);
-    console.log(`Worker: Deployment ${deployment_id} successfully processed. Status: code_pushed_awaiting_netlify_setup.`);
+    await updateDeploymentStatus(deployment_id, 'configuring_netlify', null); // Changed status to configuring_netlify
+    console.log(`Worker: Deployment ${deployment_id} successfully processed. Status: configuring_netlify.`);
     res.json({ success: true, message: "Worker processed deployment successfully. Code pushed to GitHub." });
 
   } catch (err) {
