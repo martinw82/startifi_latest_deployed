@@ -274,6 +274,10 @@ export class MVPUploadService {
       const fullPath = `${directoryPath}/${originalFileName}`;
 
       // Upload to Supabase Storage
+      console.log('Uploading file:', file.name);
+      console.log('File type:', file.type);
+      console.log('Target bucket:', bucketName);
+      console.log('Full path in storage:', fullPath);
       const { data, error } = await supabase.storage
         .from(bucketName)
         .upload(fullPath, file, { // Use fullPath here
