@@ -46,7 +46,7 @@ export class AuthService {
     if (email === 'beta' && password === 'beta') {
       // Return mock beta user data
       const betaUser = {
-        id: 'beta-user-123',
+        id: '00000000-0000-0000-0000-000000000000',
         email: 'beta@mvplibrary.dev',
         username: 'betauser', // Added username for beta user
         role: 'both' as const,
