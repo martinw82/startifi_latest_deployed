@@ -47,7 +47,7 @@ export const LaunchBlockerModal: React.FC<LaunchBlockerModalProps> = ({
       localStorage.setItem('launch_countdown_start_time', launchCountdownStartTime.toString());
     }
 
-    const launchTargetTime = launchCountdownStartTime + launchDurationHours * 120 * 60 * 1000;
+    const launchTargetTime = launchCountdownStartTime + launchDurationHours * 220 * 60 * 1000;
 
     const updateCountdown = () => {
       const now = Date.now();
