@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
@@ -18,106 +18,21 @@ import { UploadMVPPage } from './pages/UploadMVPPage';
 import { MyMVPsPage } from './pages/MyMVPsPage';
 import { ConnectStripePage } from './pages/ConnectStripePage';
 import { PayoutsPage } from './pages/PayoutsPage';
-import { GitHubAppCallbackPage } from './pages/GitHubAppCallbackPage'; // Import the new page
-import { SellerProfilePage } from './pages/SellerProfilePage'; // Import the Seller Profile page
-import { BuyerGitHubCallbackPage } from './pages/BuyerGitHubCallbackPage'; // Import the GitHub callback page
-import { BuyerNetlifyCallbackPage } from './pages/BuyerNetlifyCallbackPage'; // Import the Netlify callback page
-import { EditMVPPage } from './pages/EditMVPPage'; // Import the new EditMVPPage
-import { UserSettingsPage } from './pages/UserSettingsPage'; // Import UserSettingsPage
-import { RefundRequestPage } from './pages/RefundRequestPage'; // Import RefundRequestPage
-import { DisputePage } from './pages/DisputePage'; // Import DisputePage
-import { LeadCaptureModal } from './components/marketing/LeadCaptureModal'; // Import LeadCaptureModal
-import { DisputeDetailPage } from './pages/DisputeDetailPage'; // Import DisputeDetailPage
+import { GitHubAppCallbackPage } from './pages/GitHubAppCallbackPage';
+import { SellerProfilePage } from './pages/SellerProfilePage';
+import { BuyerGitHubCallbackPage } from './pages/BuyerGitHubCallbackPage';
+import { BuyerNetlifyCallbackPage } from './pages/BuyerNetlifyCallbackPage';
+import { EditMVPPage } from './pages/EditMVPPage';
+import { UserSettingsPage } from './pages/UserSettingsPage';
+import { RefundRequestPage } from './pages/RefundRequestPage';
+import { DisputePage } from './pages/DisputePage';
+import { DisputeDetailPage } from './pages/DisputeDetailPage';
 import { AuthContext, useAuthProvider } from './hooks/useAuth';
-import { MarketingService } from './lib/api'; // Import MarketingService
-import { LaunchBlockerModal } from './components/ui/LaunchBlockerModal'; // Import LaunchBlockerModal
+// MarketingService is still imported as it's used by LaunchBlockerModal
+// import { MarketingService } from './lib/api'; // No longer directly used here, but kept for clarity if needed elsewhere
+import { LaunchBlockerModal } from './components/ui/LaunchBlockerModal';
 
 const AppContent: React.FC = () => {
-  // State for managing the lead capture modal
-  const [showLeadModal, setShowLeadModal] = useState<boolean>(false);
-  
-  useEffect(() => {
-    console.log('[LeadModalEffect] Running effect to determine modal visibility.');
-    // Check if we've shown the modal before
-    const hasSeenModalString = localStorage.getItem('hasSeenLeadModal');
-    const hasSeenModal = hasSeenModalString === 'true';
-    console.log(`[LeadModalEffect] 'hasSeenLeadModal' from localStorage: ${hasSeenModalString} (parsed as ${hasSeenModal})`);
-
-    // --- TEMPORARY TEST: Force show modal ---
-    // setShowLeadModal(true);
-    // console.log('[LeadModalEffect] TEMPORARILY FORCING MODAL TO SHOW');
-    // return; // Skip other logic if forcing
-    // --- END TEMPORARY TEST ---
-
-    if (!hasSeenModal) {
-      console.log('[LeadModalEffect] Modal has not been seen before or flag is not "true". Setting up timer and scroll listener.');
-      // Set a timer to show the modal after 15 seconds
-      const timer = setTimeout(() => {
-        console.log('[LeadModalEffect] Timer elapsed (15s). Showing modal.');
-        setShowLeadModal(true);
-        // Once shown by timer, remove scroll listener if it hasn't triggered yet
-        window.removeEventListener('scroll', handleScroll);
-      }, 15000);
-      console.log(`[LeadModalEffect] Timer set with ID: ${timer}`);
-
-      // Set up scroll listener to show modal after scrolling 50% of the page
-      const handleScroll = () => {
-        const scrollPosition = window.scrollY;
-        const pageHeight = document.body.scrollHeight - window.innerHeight;
-        // Avoid division by zero if pageHeight is 0 (e.g., content not loaded yet or very short page)
-        const scrollPercentage = pageHeight > 0 ? (scrollPosition / pageHeight) * 100 : 0;
-        
-        // console.log(`[LeadModalEffect] Scroll detected. Position: ${scrollPosition}, PageHeight: ${pageHeight}, Percentage: ${scrollPercentage}%`);
-
-        if (scrollPercentage > 50) {
-          console.log('[LeadModalEffect] Scrolled more than 50%. Showing modal and cleaning up.');
-          setShowLeadModal(true);
-          window.removeEventListener('scroll', handleScroll);
-          clearTimeout(timer); // Clear the timer as scroll condition met
-        }
-      };
-      
-      window.addEventListener('scroll', handleScroll);
-      console.log('[LeadModalEffect] Scroll listener attached.');
-      
-      // Cleanup
-      return () => {
-        console.log('[LeadModalEffect] Cleanup function called. Clearing timer and removing scroll listener.');
-        clearTimeout(timer);
-        window.removeEventListener('scroll', handleScroll);
-      };
-    } else {
-      console.log('[LeadModalEffect] Modal has been seen before. Not showing.');
-    }
-  }, []);
-  
-  const handleCloseModal = () => {
-    console.log('[LeadModalEvent] Closing modal and setting "hasSeenLeadModal" to true in localStorage.');
-    setShowLeadModal(false);
-    // Remember that we've shown the modal
-    localStorage.setItem('hasSeenLeadModal', 'true');
-  };
-  
-  const handleSubmitLead = async (email: string, agreedToTerms: boolean) => {
-    try {
-      const result = await MarketingService.processLeadCapture(email, agreedToTerms);
-      
-      // Track conversion
-      if (result.success) {
-        // In a real app, you would track this conversion
-        console.log('Lead captured successfully:', email);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('Error submitting lead:', error);
-      return { 
-        success: false, 
-        message: 'An unexpected error occurred. Please try again later.'
-      };
-    }
-  };
-  
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
@@ -137,15 +52,15 @@ const AppContent: React.FC = () => {
           <Route path="/upload" element={<UploadMVPPage />} />
           <Route path="/my-mvps" element={<MyMVPsPage />} />
           <Route path="/mvp/:mvpId" element={<MVPDetailPage />} />
-          <Route path="/mvp/:mvpId/edit" element={<EditMVPPage />} /> {/* New route for EditMVPPage */}
+          <Route path="/mvp/:mvpId/edit" element={<EditMVPPage />} />
           <Route path="/settings" element={<UserSettingsPage />} />
           <Route path="/refund-request" element={<RefundRequestPage />} />
           <Route path="/dispute/:mvpId?" element={<DisputePage />} />
           <Route path="/disputes/:disputeId" element={<DisputeDetailPage />} />
-          
+
           {/* GitHub App Callback Route */}
           <Route path="/github-app-callback" element={<GitHubAppCallbackPage />} />
-          
+
           {/* Buyer Deploy Callback Routes */}
           <Route path="/buyer-github-callback" element={<BuyerGitHubCallbackPage />} />
           <Route path="/buyer-netlify-callback" element={<BuyerNetlifyCallbackPage />} />
@@ -173,20 +88,12 @@ const AppContent: React.FC = () => {
           <Route path="*" element={<PlaceholderPage pageName="Page Not Found" />} />
         </Routes>
       </main>
-      
-      {/* Lead Capture Modal */}
-      <LeadCaptureModal
-        isOpen={showLeadModal}
-        onClose={handleCloseModal}
-        onSubmit={handleSubmitLead}
-      />
 
       {/* Launch Blocker Modal */}
       <LaunchBlockerModal
-        launchDurationHours={72} // Set to 72 or 96 hours as desired
         overrideQueryParam="override_launch_blocker"
       />
-      
+
       <Footer />
     </div>
   );
@@ -205,4 +112,3 @@ function App() {
 }
 
 export default App;
-
