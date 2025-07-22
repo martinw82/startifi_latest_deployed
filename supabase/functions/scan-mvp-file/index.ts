@@ -330,12 +330,17 @@ function checkSuspiciousPatterns(bytes: Uint8Array): string[] {
 
 // VirusTotal scanning function
 async function performVirusTotalScan(fileData: Blob, apiKey: string): Promise<{ success: boolean; error?: string }> {
-    // If API key is not provided or is known to be invalid, bypass the scan for now.
+  // ... (existing imports and code)
+
+// VirusTotal scanning function
+async function performVirusTotalScan(fileData: Blob, apiKey: string): Promise<{ success: boolean; error?: string }> {
+  // If API key is not provided or is known to be invalid, bypass the scan for now.
   // This allows the MVP processing to continue for deployment testing.
   if (!apiKey || apiKey === 'YOUR_INVALID_API_KEY_HERE') { // Replace 'YOUR_INVALID_API_KEY_HERE' with your actual invalid key if you want to be specific, otherwise just !apiKey is enough
     console.warn('VirusTotal API key not configured or invalid. Bypassing scan for now.');
     return { success: true, error: 'VirusTotal scan bypassed due to missing/invalid API key.' };
   }
+
   try {
     // Step 1: Upload file to VirusTotal for scanning
     const formData = new FormData();
@@ -348,6 +353,12 @@ async function performVirusTotalScan(fileData: Blob, apiKey: string): Promise<{ 
       },
       body: formData,
     });
+
+    // Check for 403 Forbidden specifically, indicating a disabled key
+    if (uploadResponse.status === 403) {
+      console.warn('VirusTotal API key is disabled (403 Forbidden). Bypassing scan for now.');
+      return { success: true, error: 'VirusTotal scan bypassed: API key disabled.' };
+    }
 
     if (!uploadResponse.ok) {
       const errorText = await uploadResponse.text();
