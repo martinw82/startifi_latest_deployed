@@ -410,50 +410,66 @@ export class MVPUploadService {
 
   /**
    * Queues an MVP file for security scanning and IPFS pinning.
-   * This function is called after a file is uploaded to Supabase Storage.
-   * @param mvpId The ID of the MVP.
-   * @param filePath The path to the MVP file in Supabase Storage.
-   */
-  public static async queueIPFSUpload(mvpId: string, filePath: string): Promise<void> {
-    console.log(`Queuing IPFS upload for MVP ${mvpId} at path ${filePath}`);
+ * This function is called after a file is uploaded to Supabase Storage.
+ * @param mvpId The ID of the MVP.
+ * @param filePath The path to the MVP file in Supabase Storage.
+ */
+public static async queueIPFSUpload(mvpId: string, filePath: string): Promise<void> {
+  console.log(`Queuing IPFS upload for MVP ${mvpId} at path ${filePath}`);
+  
+  try {
+    // First, trigger security scanning
+    const scanResult = await this.triggerSecurityScan(mvpId, filePath);
     
-    try {
-      // First, trigger security scanning
-      const scanResult = await this.triggerSecurityScan(mvpId, filePath);
+    if (!scanResult.success) {
+      console.error('Security scan failed:', scanResult.error);
       
-      if (!scanResult.success) {
-        console.error('Security scan failed:', scanResult.error);
-        
-        // Update MVP status to indicate scan failed
-        await supabase
-          .from('mvps')
-          .update({ 
-            status: 'scan_failed',
-            last_processing_error: scanResult.error, // Store the error message
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', mvpId);
-        
-        return;
-      }
-      
-      // If scan passes, proceed with IPFS upload
-      await this.initiateIPFSUpload(mvpId, filePath);
-      
-    } catch (error: any) {
-      console.error('Error in queueIPFSUpload:', error);
-      
-      // Update MVP status to indicate IPFS pin failed
+      // Update MVP status to indicate scan failed
       await supabase
         .from('mvps')
         .update({ 
-          status: 'ipfs_pin_failed',
-          last_processing_error: error.message || 'Unknown error during IPFS queuing.', // Store the error message
+          status: 'scan_failed',
+          last_processing_error: scanResult.error, // Store the error message
           updated_at: new Date().toISOString()
         })
         .eq('id', mvpId);
+      
+      return;
     }
+    
+    // --- TEMPORARY BYPASS FOR IPFS PINNING ---
+    // Instead of initiating IPFS upload, directly set status to approved
+    console.log(`Security scan passed for MVP ${mvpId}. Bypassing IPFS pinning for testing purposes.`);
+    await supabase
+      .from('mvps')
+      .update({ 
+        ipfs_hash: 'bypassed_for_testing', // Set a placeholder hash
+        status: 'approved', // Directly approve after scan (or set to 'pending_review' for manual approval)
+        published_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', mvpId);
+    console.log(`MVP ${mvpId} status set to 'approved' (IPFS bypassed).`);
+    // --- END TEMPORARY BYPASS ---
+
+    // Original call (commented out for bypass):
+    // await this.initiateIPFSUpload(mvpId, filePath);
+    
+  } catch (error: any) {
+    console.error('Error in queueIPFSUpload:', error);
+    
+    // Update MVP status to indicate IPFS pin failed
+    await supabase
+      .from('mvps')
+      .update({ 
+        status: 'ipfs_pin_failed', // This status might still be set if the bypass logic itself fails
+        last_processing_error: error.message || 'Unknown error during IPFS queuing (bypassed).',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', mvpId);
   }
+}
+
 
   private static async triggerSecurityScan(mvpId: string, filePath: string): Promise<{ success: boolean; error?: string }> {
     try {
